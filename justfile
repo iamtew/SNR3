@@ -1,0 +1,61 @@
+# SNR3 – Justfile (Projucer + MSBuild)
+
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
+JUCE_PATH := env_var_or_default("JUCE_PATH", env_var("USERPROFILE") + "\\JUCE")
+PROJUCER  := JUCE_PATH + "\\Projucer.exe"
+PROJECT   := "SNR3.jucer"
+SOLUTION  := "Builds\\VisualStudio2022\\SNR3.sln"
+# Bare `msbuild` is not on PATH with Build Tools alone.
+# CI sets MSBUILD to the runner's Visual Studio; this default stays the local Build Tools.
+MSBUILD   := env_var_or_default("MSBUILD", "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\MSBuild\\Current\\Bin\\MSBuild.exe")
+
+default:
+    @just --list
+
+projucer:
+    {{PROJUCER}} {{PROJECT}}
+
+resave:
+    {{PROJUCER}} --resave {{PROJECT}}
+    # OneDrive can lag the sln behind "Finished saving".
+    $n=0; while (-not (Test-Path '{{SOLUTION}}') -and $n -lt 20) { Start-Sleep -Milliseconds 250; $n++ }
+
+# assets/logo.png is the Affinity export. Source of truth. Never write that file.
+# Derived: docs/logo.png (320, linear Lanczos EWA), Builds/.../icon.ico, then wipe .res so the next build relinks it.
+# `just resave` does not refresh icon.ico when the PNG changes.
+docs-logo:
+    magick assets/logo.png -background none -colorspace RGB -filter Lanczos +distort Resize 320x320 -colorspace sRGB PNG32:docs/logo.png
+
+icon: docs-logo
+    magick assets/logo.png -background none -colorspace RGB -filter Lanczos -define icon:auto-resize=256,128,64,48,32,16 Builds\VisualStudio2022\icon.ico
+    Get-ChildItem Builds\VisualStudio2022 -Recurse -Filter resources.res | Remove-Item -Force
+
+build-debug: resave
+    & '{{MSBUILD}}' {{SOLUTION}} /p:Configuration=Debug /p:Platform=x64 /m
+
+build-release: resave
+    & '{{MSBUILD}}' {{SOLUTION}} /p:Configuration=Release /p:Platform=x64 /m
+
+build-dist: build-release
+    if (Test-Path dist) { Remove-Item dist -Recurse -Force }
+    New-Item dist -ItemType Directory | Out-Null
+    $ver = ([xml](Get-Content '{{PROJECT}}')).JUCERPROJECT.version; Compress-Archive -Path 'Builds\VisualStudio2022\x64\Release\VST3\SNR3.vst3' -DestinationPath "dist\SNR3-$ver-win-x64-vst3.zip" -Force; Compress-Archive -Path 'Builds\VisualStudio2022\x64\Release\Standalone Plugin\SNR3.exe' -DestinationPath "dist\SNR3-$ver-win-x64-standalone.zip" -Force
+    just build-msi
+
+# Release binaries must already exist. First build downloads WiX.
+# `dotnet` on PATH when it has an SDK, otherwise %USERPROFILE%\.dotnet.
+build-msi:
+    $ver = ([xml](Get-Content '{{PROJECT}}')).JUCERPROJECT.version; $root = (Get-Location).Path; $dotnet = 'dotnet'; if (-not ((& dotnet --list-sdks) 2>$null)) { $dotnet = Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'; if (-not (Test-Path $dotnet)) { throw 'build-msi needs the .NET 8 SDK on PATH, or dotnet.exe in %USERPROFILE%\.dotnet' } }; New-Item -ItemType Directory -Force -Path dist | Out-Null; & $dotnet build installer\SNR3.wixproj -c Release -p:ProductVersion=$ver -p:Vst3Dir="$root\Builds\VisualStudio2022\x64\Release\VST3\SNR3.vst3" -p:StandaloneDir="$root\Builds\VisualStudio2022\x64\Release\Standalone Plugin" -p:IconDir="$root\Builds\VisualStudio2022"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $msi = Get-ChildItem installer\bin -Recurse -Filter SNR3.msi | Select-Object -First 1; Copy-Item $msi.FullName "dist\SNR3-$ver-win-x64-installer.msi" -Force
+
+clean:
+    & '{{MSBUILD}}' {{SOLUTION}} /t:Clean /p:Configuration=Debug /p:Platform=x64
+    & '{{MSBUILD}}' {{SOLUTION}} /t:Clean /p:Configuration=Release /p:Platform=x64
+
+rebuild: clean build-debug
+
+vs:
+    start {{SOLUTION}}
+
+check:
+    cmd /c "call `"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat`" >nul && cl /nologo /EHsc /std:c++17 /I src tests\snare_check.cpp /Fo:tests\snare_check.obj /Fe:tests\snare_check.exe && tests\snare_check.exe"

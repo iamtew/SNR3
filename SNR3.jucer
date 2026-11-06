@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT name="SNR3" companyName="Stupid Audio" version="0.0.1" userNotes="909-style snare drum."
+              projectType="audioplug" pluginAUIsSandboxSafe="1" pluginManufacturer="Stupid Audio"
+              pluginManufacturerCode="Ssys" pluginCode="Snr3" cppLanguageStandard="17"
+              pluginFormats="buildVST3,buildStandalone" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
+              useAppConfig="0" addUsingNamespaceToJuceHeader="1" id="snr3Prj1"
+              jucerFormatVersion="1">
+  <MAINGROUP id="snr3Main" name="SNR3">
+    <FILE id="logoPng1" name="logo.png" compile="0" resource="1" file="assets/logo.png"/>
+    <GROUP id="srcGrp1" name="src">
+      <FILE id="procH01" name="PluginProcessor.h" compile="0" resource="0"
+            file="src/PluginProcessor.h"/>
+      <FILE id="procC01" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="src/PluginProcessor.cpp"/>
+      <FILE id="editH01" name="PluginEditor.h" compile="0" resource="0" file="src/PluginEditor.h"/>
+      <FILE id="editC01" name="PluginEditor.cpp" compile="1" resource="0"
+            file="src/PluginEditor.cpp"/>
+      <GROUP id="dspGrp01" name="dsp">
+        <FILE id="snrH001" name="SnareVoice.h" compile="0" resource="0" file="src/dsp/SnareVoice.h"/>
+        <FILE id="rndH001" name="SnareRender.h" compile="0" resource="0" file="src/dsp/SnareRender.h"/>
+        <FILE id="scpH001" name="OutputScope.h" compile="0" resource="0" file="src/dsp/OutputScope.h"/>
+        <FILE id="eqbH001" name="EqBiquad.h" compile="0" resource="0" file="src/dsp/EqBiquad.h"/>
+        <FILE id="peqH001" name="ParametricEq.h" compile="0" resource="0" file="src/dsp/ParametricEq.h"/>
+        <FILE id="pfxH001" name="PostFx.h" compile="0" resource="0" file="src/dsp/PostFx.h"/>
+        <FILE id="dstH001" name="Distortion.h" compile="0" resource="0" file="src/dsp/Distortion.h"/>
+        <FILE id="exnH001" name="ExportNorm.h" compile="0" resource="0" file="src/dsp/ExportNorm.h"/>
+        <FILE id="wexH001" name="WavExport.h" compile="0" resource="0" file="src/dsp/WavExport.h"/>
+        <FILE id="stwH001" name="StereoWidth.h" compile="0" resource="0" file="src/dsp/StereoWidth.h"/>
+      </GROUP>
+      <GROUP id="prmGrp01" name="parameters">
+        <FILE id="pidH001" name="ParameterIDs.h" compile="0" resource="0" file="src/parameters/ParameterIDs.h"/>
+        <FILE id="plyH001" name="ParameterLayout.h" compile="0" resource="0"
+              file="src/parameters/ParameterLayout.h"/>
+      </GROUP>
+      <GROUP id="uiGrp01" name="ui">
+        <FILE id="verH001" name="VersionCompare.h" compile="0" resource="0"
+              file="src/ui/VersionCompare.h"/>
+        <FILE id="eqpH001" name="EqPage.h" compile="0" resource="0" file="src/ui/EqPage.h"/>
+        <FILE id="lmxH001" name="LayerMix.h" compile="0" resource="0" file="src/ui/LayerMix.h"/>
+      </GROUP>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors_headless" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+  </MODULES>
+  <EXPORTFORMATS>
+    <VS2022 targetFolder="Builds/VisualStudio2022" bigIcon="logoPng1" smallIcon="logoPng1">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="SNR3"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="SNR3"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </VS2022>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" bigIcon="logoPng1" smallIcon="logoPng1">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="SNR3" enablePluginBinaryCopyStep="0"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="SNR3" enablePluginBinaryCopyStep="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
+    <XCODE_MAC targetFolder="Builds/MacOSX" bigIcon="logoPng1" smallIcon="logoPng1"
+               xcodeValidArchs="x86_64,arm64">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="SNR3"
+                       osxArchitecture="64BitIntel" macOSDeploymentTarget="11.0"
+                       enablePluginBinaryCopyStep="0"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="SNR3"
+                       osxArchitecture="64BitIntel" macOSDeploymentTarget="11.0"
+                       enablePluginBinaryCopyStep="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="C:\Users\Mikael\JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="C:\Users\Mikael\JUCE\modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_WEB_BROWSER="0" JUCE_USE_CURL="0"
+               JUCE_VST3_CAN_REPLACE_VST2="0"/>
+</JUCERPROJECT>

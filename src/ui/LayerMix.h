@@ -13,7 +13,7 @@ public:
         static const char* names[] = { "Shell", "Wires", "Stick", "Sample" };
         static const juce::Colour cols[] = {
             juce::Colour (0xffc4a35a), juce::Colour (0xffe8dcc8),
-            juce::Colour (0xff8a3a22), juce::Colour (0xff66d4ff)
+            juce::Colour (0xff8a3a22), juce::Colour (0xffc4a35a)
         };
         for (int i = 0; i < ParamID::layerCount; ++i)
             addStrip (i, names[i], cols[i]);

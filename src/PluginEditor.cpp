@@ -44,7 +44,7 @@ juce::Colour layerColour (int layer)
         case 0: return juce::Colour (0xffc4a35a);
         case 1: return juce::Colour (0xffe8dcc8);
         case 2: return juce::Colour (0xff8a3a22);
-        default: return juce::Colour (0xff66d4ff);
+        default: return juce::Colour (0xffc4a35a);
     }
 }
 

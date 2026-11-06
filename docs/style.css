@@ -106,10 +106,32 @@ h1 { font-size: 2rem; }
 .demo a { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
 .demo audio { width: 100%; max-width: 22rem; display: block; }
 
-.actions { display: flex; align-items: center; gap: 1rem; }
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.downloads { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.dl-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dl-label {
+  min-width: 6.6rem;
+  font-weight: 700;
+  color: var(--metal);
+}
 
 .download {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   background: var(--rust);
   color: var(--white);
   font-weight: 700;
@@ -119,6 +141,20 @@ h1 { font-size: 2rem; }
 }
 
 .download:hover { background: var(--brass); color: var(--ink); }
+
+.ico {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  background: currentColor;
+  -webkit-mask: var(--ico) center / contain no-repeat;
+  mask: var(--ico) center / contain no-repeat;
+}
+
+.ico-win { --ico: url("icons/windows.svg"); }
+.ico-linux { --ico: url("icons/linux.svg"); }
+.ico-mac { --ico: url("icons/apple.svg"); }
+.ico-gh { --ico: url("icons/github.svg"); }
 
 .meta { color: var(--metal); opacity: 0.8; }
 

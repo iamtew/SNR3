@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "dsp/ExportNorm.h"
+#include "presets/FactoryPresets.h"
 
 #include <cstring>
 #include <vector>
@@ -31,6 +32,79 @@ juce::String legalStem (const juce::String& name)
     if (stem.endsWithIgnoreCase (kPatchExt))
         stem = stem.dropLastCharacters ((int) std::strlen (kPatchExt));
     return stem;
+}
+
+void setParam (juce::AudioProcessorValueTreeState& apvts, const char* id, float value)
+{
+    if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (id)))
+    {
+        ranged->beginChangeGesture();
+        ranged->setValueNotifyingHost (ranged->convertTo0to1 (value));
+        ranged->endChangeGesture();
+    }
+}
+
+void applyFactory (SNR3AudioProcessor& proc, const snr3::FactoryPreset& preset)
+{
+    proc.initPatch();
+    auto& apvts = proc.apvts;
+    setParam (apvts, ParamID::tune, preset.tune);
+    setParam (apvts, ParamID::shellDec, preset.shellDec);
+    setParam (apvts, ParamID::shellTone, preset.shellTone);
+    setParam (apvts, ParamID::wiresDec, preset.wiresDec);
+    setParam (apvts, ParamID::wiresTone, preset.wiresTone);
+    setParam (apvts, ParamID::stickDec, preset.stickDec);
+    setParam (apvts, ParamID::stickTone, preset.stickTone);
+    setParam (apvts, ParamID::lyGain[0], preset.shellGain);
+    setParam (apvts, ParamID::lyGain[1], preset.wiresGain);
+    setParam (apvts, ParamID::lyGain[2], preset.stickGain);
+    setParam (apvts, ParamID::lyGain[3], 0.f);
+    setParam (apvts, ParamID::level, preset.level);
+    setParam (apvts, ParamID::duckDepth, preset.duck);
+    setParam (apvts, ParamID::duckTime, preset.duckTime);
+    setParam (apvts, ParamID::length, (float) preset.length);
+
+    if (const auto* fx = snr3::findFactoryFx (preset.name))
+    {
+        setParam (apvts, ParamID::fxDry, fx->dry);
+        setParam (apvts, ParamID::fxWet, fx->wet);
+        if (fx->dst >= 0.f)
+        {
+            setParam (apvts, ParamID::fxDstOn, 1.f);
+            setParam (apvts, ParamID::fxDstDrive, fx->dst);
+            setParam (apvts, ParamID::fxDstType, (float) fx->dstType);
+        }
+        if (fx->dlyDiv >= 0)
+        {
+            setParam (apvts, ParamID::fxDlyOn, 1.f);
+            setParam (apvts, ParamID::fxDlyDiv, (float) fx->dlyDiv);
+            setParam (apvts, ParamID::fxDlyFb, fx->dlyFb);
+        }
+        if (fx->rev >= 0.f)
+        {
+            setParam (apvts, ParamID::fxRevOn, 1.f);
+            setParam (apvts, ParamID::fxRevSize, fx->rev);
+            setParam (apvts, ParamID::fxRevDamp, fx->revDamp);
+        }
+    }
+
+    if (const auto* eq = snr3::findFactoryEq (preset.name))
+    {
+        setParam (apvts, ParamID::postEqOn, 1.f);
+        setParam (apvts, ParamID::postEqType[0], (float) eq->type);
+        setParam (apvts, ParamID::postEqFreq[0], eq->hz);
+        setParam (apvts, ParamID::postEqGain[0], eq->db);
+        setParam (apvts, ParamID::postEqQ[0], eq->q);
+        if (eq->type2 > 0)
+        {
+            setParam (apvts, ParamID::postEqType[1], (float) eq->type2);
+            setParam (apvts, ParamID::postEqFreq[1], eq->hz2);
+            setParam (apvts, ParamID::postEqGain[1], eq->db2);
+            setParam (apvts, ParamID::postEqQ[1], eq->q2);
+        }
+    }
+
+    apvts.state.setProperty (kPatchName, preset.name, nullptr);
 }
 } // namespace
 
@@ -589,11 +663,14 @@ juce::File SNR3AudioProcessor::patchesDir() const
 juce::StringArray SNR3AudioProcessor::patchNames() const
 {
     juce::StringArray names;
+    for (const auto& preset : snr3::factoryPresets)
+        names.add (preset.name);
     juce::StringArray extra;
     for (const auto& entry : juce::RangedDirectoryIterator (patchesDir(), false, "*.snr3p"))
     {
         const auto stem = entry.getFile().getFileNameWithoutExtension();
-        extra.add (stem);
+        if (! names.contains (stem))
+            extra.add (stem);
     }
     extra.sortNatural();
     names.addArray (extra);
@@ -672,15 +749,22 @@ bool SNR3AudioProcessor::loadPatchByName (const juce::String& name)
         return true;
     }
     const auto src = patchesDir().getChildFile (stem + kPatchExt);
-    if (! src.existsAsFile())
-        return false;
-    auto xml = juce::XmlDocument::parse (src);
-    if (xml == nullptr || ! xml->hasTagName (apvts.state.getType()))
-        return false;
-    apvts.replaceState (juce::ValueTree::fromXml (*xml));
-    apvts.state.setProperty (kPatchName, stem, nullptr);
-    reloadSample();
-    return true;
+    if (src.existsAsFile())
+    {
+        auto xml = juce::XmlDocument::parse (src);
+        if (xml == nullptr || ! xml->hasTagName (apvts.state.getType()))
+            return false;
+        apvts.replaceState (juce::ValueTree::fromXml (*xml));
+        apvts.state.setProperty (kPatchName, stem, nullptr);
+        reloadSample();
+        return true;
+    }
+    if (const auto* preset = snr3::findFactoryPreset (stem.toRawUTF8()))
+    {
+        applyFactory (*this, *preset);
+        return true;
+    }
+    return false;
 }
 
 bool SNR3AudioProcessor::savePatchAs (const juce::String& name)

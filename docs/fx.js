@@ -1,7 +1,9 @@
-// PixiJS backdrop: catalog kickScene, full-viewport, no CDN.
+// PixiJS backdrop: snareScene, full-viewport, no CDN.
 const C = { rust: 0x8a3a22, brass: 0xc4a35a, cream: 0xe8dcc8 };
-const BPM = 124;
+const BPM = 150;
 const BEAT = 60 / BPM;
+const FLAM = 0.04;
+const ST = [0.18, 0.39, 0.61, 0.82];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
@@ -30,7 +32,7 @@ async function start() {
   });
 
   const glow = glowTexture(PIXI);
-  const scene = kickScene(PIXI, glow);
+  const scene = snareScene(PIXI, glow);
   app.stage.addChild(scene.root);
   bootTicker(app, scene);
 }
@@ -95,14 +97,13 @@ function glowLine(g, pts, color, scale = 1, passes = GLOW_PASSES) {
   }
 }
 
-function kickScene(PIXI, glow) {
+function snareScene(PIXI, glow) {
   const root = new PIXI.Container();
-  const rings = new PIXI.Graphics();
+  const ink = new PIXI.Graphics();
   const wave = new PIXI.Graphics();
-  rings.blendMode = 'add';
+  ink.blendMode = 'add';
   wave.blendMode = 'add';
-  const core = glowSprite(PIXI, glow, C.brass);
-  root.addChild(rings, wave, core);
+  root.addChild(ink, wave);
 
   const sparks = Array.from({ length: 90 }, () => {
     const s = glowSprite(PIXI, glow, Math.random() < 0.3 ? C.rust : C.cream);
@@ -111,57 +112,78 @@ function kickScene(PIXI, glow) {
     return s;
   });
   let nextSpark = 0;
-  const bursts = [];
-  let lastBeat = -1;
+  const hits = [];
+  let lastQ = -1;
+  let lastFlamBar = -1;
+  let env = 0;
+
+  function spawn(t, w, h, slot, amp, nSparks, dx) {
+    const x = w * ST[slot] + dx;
+    const y = h * 0.45;
+    hits.push({ born: t, x, y, amp });
+    env = Math.max(env, amp);
+    for (let i = 0; i < nSparks; i++) {
+      const s = sparks[nextSpark++ % sparks.length];
+      const side = Math.random() < 0.5 ? -1 : 1;
+      s.x = x; s.y = y;
+      s.vx = side * rand(180, 520);
+      s.vy = rand(-90, 90);
+      s.alpha = 0.4 + 0.6 * amp;
+      s.scale.set(rand(0.12, 0.32) * (0.5 + amp));
+    }
+  }
 
   return {
     root,
     update(t, w, h, dt) {
-      const cx = w * 0.5, cy = h * 0.45;
-      const beat = Math.floor(t / BEAT);
-      const env = Math.exp(-(t % BEAT) * 7);
-      if (beat !== lastBeat) {
-        lastBeat = beat;
-        bursts.push(t);
-        for (let i = 0; i < 24; i++) {
-          const s = sparks[nextSpark++ % sparks.length];
-          const a = rand(0, Math.PI * 2), v = rand(200, 650);
-          s.x = cx; s.y = cy; s.vx = Math.cos(a) * v; s.vy = Math.sin(a) * v;
-          s.alpha = 1; s.scale.set(rand(0.15, 0.4));
-        }
+      const q = Math.floor(t / BEAT);
+      const barLen = 4 * BEAT;
+      const flamBar = Math.floor((t + FLAM) / barLen);
+      if (flamBar !== lastFlamBar && t >= flamBar * barLen - FLAM) {
+        lastFlamBar = flamBar;
+        spawn(t, w, h, 0, 0.35, 6, -10);
       }
-      while (bursts.length && t - bursts[0] > 2.6) bursts.shift();
+      if (q !== lastQ) {
+        lastQ = q;
+        const slot = ((q % 4) + 4) % 4;
+        const accent = slot === 0 || slot === 2;
+        spawn(t, w, h, slot, accent ? 1 : 0.28, accent ? 18 : 5, slot === 0 ? 8 : 0);
+      }
+      while (hits.length && t - hits[0].born > 0.5) hits.shift();
+      env *= Math.exp(-dt * 16);
 
-      rings.clear();
-      const maxR = Math.hypot(w, h) * 0.55;
-      for (const born of bursts) {
-        const a = t - born, life = 1 - a / 2.6;
+      ink.clear();
+      for (const hit of hits) {
+        const a = t - hit.born;
+        const life = 1 - a / 0.45;
         if (life <= 0) continue;
-        const r = maxR * (1 - Math.exp(-a * 2.2));
-        for (const [width, alpha] of GLOW_PASSES) {
-          rings.circle(cx, cy, r).stroke({ width: width * (0.5 + life), color: C.brass, alpha: alpha * life * life });
+        const len = (70 + 150 * hit.amp) * (0.35 + 0.65 * life);
+        const nWires = 3 + Math.round(hit.amp * 3);
+        for (let i = 0; i < nWires; i++) {
+          const dy = (i - (nWires - 1) / 2) * 4.5;
+          glowLine(ink, [hit.x - len, hit.y + dy, hit.x + len, hit.y + dy], C.brass, (0.35 + 0.65 * hit.amp) * life);
         }
-        if (a > 0.12) {
-          rings.circle(cx, cy, r * 0.82).stroke({ width: 1.5, color: C.rust, alpha: 0.5 * life * life });
+        if (a < 0.08) {
+          const sl = 1 - a / 0.08;
+          const hgt = 18 + 48 * hit.amp;
+          glowLine(ink, [hit.x, hit.y - hgt, hit.x, hit.y + hgt * 0.28], C.rust, sl * (0.5 + 0.5 * hit.amp));
         }
       }
-
-      core.scale.set(2.5 + 5 * env);
-      core.alpha = 0.35 + 0.6 * env;
 
       for (const s of sparks) {
         if (s.alpha <= 0.01) continue;
         s.x += s.vx * dt; s.y += s.vy * dt;
-        s.vx *= Math.exp(-dt * 2.5); s.vy *= Math.exp(-dt * 2.5);
-        s.alpha *= Math.exp(-dt * 2.2);
+        s.vx *= Math.exp(-dt * 3.2); s.vy *= Math.exp(-dt * 3.2);
+        s.alpha *= Math.exp(-dt * 3.4);
       }
 
       wave.clear();
-      const pts = [], wy = h * 0.82, amp = h * 0.09 * (0.45 + 0.55 * env);
+      const pts = [], wy = h * 0.82, amp = h * 0.07 * (0.2 + 0.8 * env);
       for (let x = 0; x <= w; x += 3) {
         const u = x / w;
-        const phase = 70 * u + 55 * (1 - Math.exp(-u * 6)) - t * 6;
-        pts.push(x, wy + amp * Math.exp(-u * 2.8) * Math.sin(phase));
+        const phase = 140 * u - t * 28;
+        const crack = Math.sin(x * 0.55 + t * 55) * 0.28 + Math.sin(x * 1.4 - t * 90) * 0.12;
+        pts.push(x, wy + amp * Math.exp(-u * 5.5) * (Math.sin(phase) + crack));
       }
       glowLine(wave, pts, C.brass);
     },

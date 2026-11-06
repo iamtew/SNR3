@@ -4,6 +4,7 @@
 #include "../dsp/SnareRender.h"
 
 #include <JuceHeader.h>
+#include <cmath>
 
 inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
 {
@@ -112,6 +113,34 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         ParameterID { ParamID::sampleLp, 1 }, "Sample LPF", sampleLpR, 16000.f, hzAttrs (sampleLpR)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::sampleLen, 1 }, "Sample Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::sampleStart, 1 }, "Sample Start", unit, 0.f, pct (unit)));
+    layout.add (std::make_unique<AudioParameterBool> (
+        ParameterID { ParamID::sampleRev, 1 }, "Sample Reverse", false));
+    auto sampleDecR = NormalisableRange<float> (0.f, 1.f, 0.001f, 0.4f);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::sampleDec, 1 }, "Sample Decay", sampleDecR, 0.f,
+        AudioParameterFloatAttributes()
+            .withStringFromValueFunction ([] (float v, int)
+            {
+                if (v <= 0.f)
+                    return String ("Off");
+                return String (v, 2) + " s";
+            })
+            .withValueFromStringFunction ([sampleDecR] (const String& t)
+            {
+                if (t.containsIgnoreCase ("off"))
+                    return 0.f;
+                return jlimit (sampleDecR.start, sampleDecR.end, t.getFloatValue());
+            })));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::wiresBuzz, 1 }, "Wires Buzz", unit, 0.f, pct (unit)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::wiresColor, 1 }, "Wires Color", unit, 0.f, pct (unit)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::stickHard, 1 }, "Stick Hard", unit, 0.f, pct (unit)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::stickClick, 1 }, "Stick Click", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::shellLen, 1 }, "Shell Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
     layout.add (std::make_unique<AudioParameterFloat> (
@@ -239,6 +268,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     };
     const char* who[] = { "Shell", "Wires", "Stick", "Sample" };
     const float atkDef[] = { 0.4f, 0.3f, 0.2f, 0.f };
+    auto panR = NormalisableRange<float> (-1.f, 1.f);
     for (int i = 0; i < ParamID::layerCount; ++i)
     {
         addUnit (ParamID::lyGain[i], (String (who[i]) + " Gain").toRawUTF8(), 1.f);
@@ -250,6 +280,35 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             ParameterID { ParamID::lyDelay[i], 1 }, String (who[i]) + " Delay", delayR, 0.f, msAttrs (delayR)));
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { ParamID::lyAtk[i], 1 }, String (who[i]) + " Attack", atkR, atkDef[i], msAttrs (atkR)));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { ParamID::lyPan[i], 1 }, String (who[i]) + " Pan", panR, 0.f,
+            AudioParameterFloatAttributes()
+                .withStringFromValueFunction ([] (float v, int)
+                {
+                    if (std::abs (v) < 0.005f)
+                        return String ("C");
+                    const int pctV = roundToInt (std::abs (v) * 100.f);
+                    return (v < 0.f ? String ("L ") : String ("R ")) + String (pctV) + "%";
+                })
+                .withValueFromStringFunction ([panR] (const String& t)
+                {
+                    auto s = t.trim();
+                    if (s.equalsIgnoreCase ("C") || s.equalsIgnoreCase ("centre") || s.equalsIgnoreCase ("center"))
+                        return 0.f;
+                    const bool left = s.startsWithIgnoreCase ("L");
+                    const bool right = s.startsWithIgnoreCase ("R");
+                    if (left || right)
+                        s = s.substring (1).trim();
+                    float u = s.getFloatValue();
+                    if (s.containsChar ('%') || std::abs (u) > 1.f)
+                        u *= 0.01f;
+                    if (left)
+                        u = -std::abs (u);
+                    else if (right)
+                        u = std::abs (u);
+                    return jlimit (panR.start, panR.end, u);
+                })));
+        addUnit (ParamID::lyDrive[i], (String (who[i]) + " Drive").toRawUTF8(), 0.f);
     }
 
     for (int layer = 0; layer < ParamID::layerCount; ++layer)

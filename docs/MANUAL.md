@@ -10,12 +10,12 @@ MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune is for Standalo
 
 ## Layers
 
-- **Shell** — pitched body (Tune, Decay, Tone, Harm, Length, Attack). Vel / Width are global and live here.
-- **Wires** — snare-wire noise (Decay, HPF, LPF, Length, Attack, Pre)
-- **Stick** — beater / click (Decay, Tone, Length, Attack, Pre)
-- **Sample** — user WAV/AIFF/FLAC, linear resample, no pitch. HPF, LPF, Length, Attack, Pre. Missing file = silence.
+- **Shell** — pitched body (Tune, Decay, Tone, Harm, Length, Attack). Vel / Width are global and live here. Pan / Drive on every layer.
+- **Wires** — snare-wire noise (Decay, HPF, LPF, Length, Attack, Pre). Buzz is a short comb rattle; Color tilts white toward pink.
+- **Stick** — beater / click (Decay, Tone, Length, Attack, Pre). Hard is extra brightness; Click is a separate ~0.8 ms spike.
+- **Sample** — user WAV/AIFF/FLAC, linear resample, no pitch. HPF, LPF, Length, Attack, Pre, Start, Rev, Decay. Missing file = silence.
 
-Length Auto follows the global Length snap (or Decay when that is Free). Attack is fade-in after Delay / Pre.
+Length Auto follows the global Length snap (or Decay when that is Free). Attack is fade-in after Delay / Pre. Drive 0 is bypass; Pan centre is unchanged. Sample Decay Off plays through; Start skips into the file.
 
 Style: Classic / Fat / Snap / Tight / Hard. Scales stick and decays; knobs stay put. Shape: Sine / Tri on Shell. Dist Shape on the FX page is a different control.
 

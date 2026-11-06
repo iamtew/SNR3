@@ -207,6 +207,9 @@ void SNR3AudioProcessor::bindSample (snr3::SampleVoice::Params& p) const
     const float lengthSec = snr3::lengthSeconds (lengthChoice(), hostBpm());
     p.lengthSec = snr3::layerLifeSec (ms, lengthSec);
     p.attackMs = raw (ParamID::lyAtk[3]);
+    p.start01 = raw (ParamID::sampleStart);
+    p.reverse = raw (ParamID::sampleRev) >= 0.5f;
+    p.decaySec = raw (ParamID::sampleDec);
 }
 
 void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
@@ -225,11 +228,15 @@ void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
     p.wires.delayMs = raw (ParamID::lyDelay[1]);
     p.wires.lengthSec = snr3::layerLifeSec (raw (ParamID::wiresLen), lengthSec);
     p.wires.attackMs = raw (ParamID::lyAtk[1]);
+    p.wires.buzz = raw (ParamID::wiresBuzz);
+    p.wires.color = raw (ParamID::wiresColor);
     p.stick.decayMs = raw (ParamID::stickDec);
     p.stick.toneHz = raw (ParamID::stickTone);
     p.stick.delayMs = raw (ParamID::lyDelay[2]);
     p.stick.lengthSec = snr3::layerLifeSec (raw (ParamID::stickLen), lengthSec);
     p.stick.attackMs = raw (ParamID::lyAtk[2]);
+    p.stick.hard = raw (ParamID::stickHard);
+    p.stick.click = raw (ParamID::stickClick);
     bindSample (p.sample);
     p.duckDepth = raw (ParamID::duckDepth);
     p.duckTimeMs = raw (ParamID::duckTime);
@@ -266,6 +273,15 @@ void SNR3AudioProcessor::fillWide (bool* out) const
     out[1] = true;  // Wires
     out[2] = true;  // Stick
     out[3] = false; // Sample
+}
+
+void SNR3AudioProcessor::fillPanDrive (float* pan, float* drive) const
+{
+    for (int i = 0; i < snr3::kMixLayers; ++i)
+    {
+        pan[i] = raw (ParamID::lyPan[i]);
+        drive[i] = raw (ParamID::lyDrive[i]);
+    }
 }
 
 void SNR3AudioProcessor::applyVelocity (snr3::SnareParams& p, float* amp, int vel) const
@@ -400,6 +416,8 @@ void SNR3AudioProcessor::renderBars (juce::AudioBuffer<float>& dest, double samp
     const float width = raw (ParamID::width);
     bool isWide[snr3::kMixLayers];
     fillWide (isWide);
+    float pan[snr3::kMixLayers], drive[snr3::kMixLayers];
+    fillPanDrive (pan, drive);
     auto* l = dest.getWritePointer (0);
     auto* r = dest.getNumChannels() > 1 ? dest.getWritePointer (1) : nullptr;
     juce::AudioBuffer<float> sendBuf (dest.getNumChannels(), n);
@@ -412,13 +430,13 @@ void SNR3AudioProcessor::renderBars (juce::AudioBuffer<float>& dest, double samp
         float layer[snr3::kMixLayers];
         for (int L = 0; L < snr3::kMixLayers; ++L)
             layer[L] = storage[L][(size_t) i];
-        float mid = 0.f, wide = 0.f, send = 0.f;
-        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, mid, wide, send);
+        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
+        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, drive, mid, wide, send, extraL, extraR);
         float L = 0.f, R = 0.f;
         sw.process (mid * master, wide * master, width, L, R);
-        l[i] = L;
+        l[i] = L + extraL * master;
         if (r != nullptr)
-            r[i] = R;
+            r[i] = R + extraR * master;
         s0[i] = send * master;
     }
     for (int ch = 1; ch < dest.getNumChannels(); ++ch)
@@ -455,12 +473,15 @@ void SNR3AudioProcessor::renderShot (float* dest, int n, double sampleRate) cons
 
     float amp[snr3::kMixLayers];
     fillAmps (amp);
+    float drive[snr3::kMixLayers];
+    for (int L = 0; L < snr3::kMixLayers; ++L)
+        drive[L] = raw (ParamID::lyDrive[L]);
     const float master = raw (ParamID::level);
     for (int i = 0; i < n; ++i)
     {
         float acc = 0.f;
         for (int L = 0; L < snr3::kMixLayers; ++L)
-            acc += chan[L][i] * amp[L];
+            acc += snr3::layerDriveSamp (chan[L][i] * amp[L], drive[L]);
         dest[i] = acc * master;
     }
 }
@@ -542,6 +563,8 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     const float width = raw (ParamID::width);
     bool isWide[snr3::kMixLayers];
     fillWide (isWide);
+    float pan[snr3::kMixLayers], driveAmt[snr3::kMixLayers];
+    fillPanDrive (pan, driveAmt);
     float peak[snr3::kMixLayers] = {};
     const int sendN = juce::jmin (nEq, sendScratch.getNumSamples());
     auto* rch = mainOut.getNumChannels() > 1 ? mainOut.getWritePointer (1) : nullptr;
@@ -555,13 +578,13 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
             if (a > peak[L])
                 peak[L] = a;
         }
-        float mid = 0.f, wide = 0.f, send = 0.f;
-        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, mid, wide, send);
+        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
+        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, driveAmt, mid, wide, send, extraL, extraR);
         float L = 0.f, R = 0.f;
         stereoWidth.process (mid * g, wide * g, width, L, R);
-        l[i] = L;
+        l[i] = L + extraL * g;
         if (rch != nullptr)
-            rch[i] = R;
+            rch[i] = R + extraR * g;
         if (i < sendN)
             sendScratch.setSample (0, i, send * g);
     }
@@ -630,6 +653,8 @@ void SNR3AudioProcessor::renderWithPost (juce::AudioBuffer<float>& dest, double 
     const float width = raw (ParamID::width);
     bool isWide[snr3::kMixLayers];
     fillWide (isWide);
+    float pan[snr3::kMixLayers], drive[snr3::kMixLayers];
+    fillPanDrive (pan, drive);
     juce::AudioBuffer<float> sendBuf (chs, n);
     sendBuf.clear();
     auto* d0 = dest.getWritePointer (0);
@@ -642,13 +667,13 @@ void SNR3AudioProcessor::renderWithPost (juce::AudioBuffer<float>& dest, double 
         float layer[snr3::kMixLayers];
         for (int L = 0; L < snr3::kMixLayers; ++L)
             layer[L] = chan[L][i];
-        float mid = 0.f, wide = 0.f, send = 0.f;
-        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, mid, wide, send);
+        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
+        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, drive, mid, wide, send, extraL, extraR);
         float L = 0.f, R = 0.f;
         sw.process (mid * master, wide * master, width, L, R);
-        d0[i] = L;
+        d0[i] = L + extraL * master;
         if (d1 != nullptr)
-            d1[i] = R;
+            d1[i] = R + extraR * master;
         s0[i] = send * master;
     }
     for (int ch = 1; ch < chs; ++ch)

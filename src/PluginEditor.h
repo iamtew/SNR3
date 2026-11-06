@@ -254,6 +254,8 @@ private:
     juce::ComboBox holdBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> holdAtt;
     juce::ToggleButton sampleLoadBtn;
+    juce::ToggleButton sampleRevBtn { "Rev" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> sampleRevAtt;
     PatchBar patchBar;
     PatchBar pageBar;
     VolumeStrip volumeStrip { *this };

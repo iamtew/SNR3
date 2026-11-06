@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Distortion.h"
+
 #include <cmath>
 #include <cstdint>
 
@@ -252,15 +254,28 @@ struct WiresVoice
         float delayMs = 0.f;
         float lengthSec = 0.f;
         float attackMs = 0.3f;
+        float buzz = 0.f;
+        float color = 0.f;
     };
 
-    void prepare (double sampleRate) { clock.prepare (sampleRate); }
+    void prepare (double sampleRate)
+    {
+        clock.prepare (sampleRate);
+        buzzD = (int) (clock.sr * 0.0012);
+        if (buzzD < 1)
+            buzzD = 1;
+        if (buzzD >= kBuzzN)
+            buzzD = kBuzzN - 1;
+    }
 
     void trigger (const Params& p)
     {
         params = p;
-        hpZ = lpZ = 0.f;
+        hpZ = lpZ = pinkZ = 0.f;
         noise = 0xBEEFu;
+        buzzW = 0;
+        for (int i = 0; i < kBuzzN; ++i)
+            buzzBuf[i] = 0.f;
         float life = params.decay * 8.f;
         if (life < 0.05f)
             life = 0.05f;
@@ -277,7 +292,10 @@ struct WiresVoice
         if (! clock.tick())
             return 0.f;
         const double t = (double) clock.pos / clock.sr;
-        const float n = noiseUni (noise);
+        float n = noiseUni (noise);
+        pinkZ += 0.05f * (n - pinkZ);
+        if (params.color > 0.f)
+            n += params.color * (pinkZ - n);
         float hp = params.hpHz, lp = params.lpHz;
         layerSortBand (hp, lp);
         const float hpC = layerOnePole (hp, clock.sr);
@@ -286,7 +304,17 @@ struct WiresVoice
         const float high = n - hpZ;
         lpZ += lpC * (high - lpZ);
         const float env = std::exp ((float) (-t / (double) params.decay));
-        const float y = lpZ * env * clock.attack() * clock.fade();
+        float y = lpZ * env * clock.attack() * clock.fade();
+        int ri = buzzW - buzzD;
+        if (ri < 0)
+            ri += kBuzzN;
+        const float delayed = buzzBuf[ri];
+        buzzBuf[buzzW] = y;
+        ++buzzW;
+        if (buzzW >= kBuzzN)
+            buzzW = 0;
+        if (params.buzz > 0.f)
+            y += params.buzz * delayed;
         clock.advance();
         return y;
     }
@@ -294,9 +322,13 @@ struct WiresVoice
     Params params;
 
 private:
+    static constexpr int kBuzzN = 256;
     LayerClock clock;
     std::uint32_t noise = 1;
-    float hpZ = 0.f, lpZ = 0.f;
+    float hpZ = 0.f, lpZ = 0.f, pinkZ = 0.f;
+    float buzzBuf[kBuzzN] = {};
+    int buzzW = 0;
+    int buzzD = 53;
 };
 
 struct StickVoice
@@ -309,6 +341,8 @@ struct StickVoice
         float lengthSec = 0.f;
         float attackMs = 0.2f;
         float gain = 1.f;
+        float hard = 0.f;
+        float click = 0.f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -316,7 +350,7 @@ struct StickVoice
     void trigger (const Params& p)
     {
         params = p;
-        hpZ = 0.f;
+        hpZ = hpHighZ = 0.f;
         noise = 0xAce1u;
         float life = params.decayMs * 0.001f * 8.f;
         if (life < 0.008f)
@@ -339,7 +373,17 @@ struct StickVoice
         const float hpC = layerOnePole (params.toneHz, clock.sr);
         hpZ += hpC * (n - hpZ);
         const float env = std::exp ((float) (-t / (double) tau));
-        const float y = (n - hpZ) * env * params.gain * clock.attack() * clock.fade();
+        const float fade = params.gain * env * clock.attack() * clock.fade();
+        float y = (n - hpZ) * fade;
+        if (params.hard > 0.f)
+        {
+            const float hpHighC = layerOnePole (8000.f, clock.sr);
+            hpHighZ += hpHighC * (n - hpHighZ);
+            y = (1.f - params.hard) * y + params.hard * (n - hpHighZ) * fade;
+        }
+        if (params.click > 0.f)
+            y += params.click * n * std::exp ((float) (-t / 0.0008)) * params.gain
+                 * clock.attack() * clock.fade();
         clock.advance();
         return y;
     }
@@ -349,7 +393,7 @@ struct StickVoice
 private:
     LayerClock clock;
     std::uint32_t noise = 1;
-    float hpZ = 0.f;
+    float hpZ = 0.f, hpHighZ = 0.f;
 };
 
 // Linear resample, no pitch. Missing buffer = silence.
@@ -365,6 +409,9 @@ struct SampleVoice
         float delayMs = 0.f;
         float lengthSec = 0.f;
         float attackMs = 0.f;
+        float start01 = 0.f;
+        bool reverse = false;
+        float decaySec = 0.f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -375,7 +422,15 @@ struct SampleVoice
         hpZ = lpZ = 0.f;
         float life = 0.05f;
         if (params.data != nullptr && params.n > 1 && params.fileSr > 1.0)
-            life = (float) ((double) params.n / params.fileSr);
+        {
+            float start = params.start01;
+            if (start < 0.f)
+                start = 0.f;
+            if (start > 1.f)
+                start = 1.f;
+            const int startI = (int) (start * (float) (params.n - 1));
+            life = (float) ((double) (params.n - startI) / params.fileSr);
+        }
         if (life < 0.005f)
             life = 0.005f;
         if (params.lengthSec > 0.f)
@@ -393,12 +448,25 @@ struct SampleVoice
         float x = 0.f;
         if (params.data != nullptr && params.n > 1 && params.fileSr > 1.0)
         {
-            const double idx = (double) clock.pos * (params.fileSr / clock.sr);
-            if (idx >= 0.0 && idx < (double) (params.n - 1))
+            const double last = (double) (params.n - 1);
+            double start = (double) params.start01 * last;
+            if (start < 0.0)
+                start = 0.0;
+            if (start > last)
+                start = last;
+            const double idx = params.reverse
+                ? (last - start) - (double) clock.pos * (params.fileSr / clock.sr)
+                : start + (double) clock.pos * (params.fileSr / clock.sr);
+            if (idx >= 0.0 && idx <= last)
             {
                 const int i0 = (int) idx;
-                const float frac = (float) (idx - (double) i0);
-                x = params.data[i0] + frac * (params.data[i0 + 1] - params.data[i0]);
+                if (i0 >= params.n - 1)
+                    x = params.data[params.n - 1];
+                else
+                {
+                    const float frac = (float) (idx - (double) i0);
+                    x = params.data[i0] + frac * (params.data[i0 + 1] - params.data[i0]);
+                }
             }
         }
         float hp = params.hpfHz;
@@ -409,7 +477,13 @@ struct SampleVoice
         hpZ += hpC * (x - hpZ);
         const float high = x - hpZ;
         lpZ += lpC * (high - lpZ);
-        const float y = lpZ * clock.attack() * clock.fade();
+        float env = clock.attack() * clock.fade();
+        if (params.decaySec > 0.f)
+        {
+            const double t = (double) clock.pos / clock.sr;
+            env *= std::exp ((float) (-t / (double) params.decaySec));
+        }
+        const float y = lpZ * env;
         clock.advance();
         return y;
     }
@@ -473,6 +547,20 @@ struct LayerDuck
     bool active = false;
 };
 
+inline float layerDriveSamp (float x, float drive)
+{
+    if (drive <= 0.f)
+        return x;
+    return distortCore (distSoft, x, 1.f + drive * 12.f);
+}
+
+inline void panGains (float pan, float& gL, float& gR)
+{
+    const float a = (pan + 1.f) * 0.7853981633974483f;
+    gL = std::cos (a) * 1.41421356237f;
+    gR = std::sin (a) * 1.41421356237f;
+}
+
 inline void layerSendMix (const float* layer, const float* amp, const float* sendAmt,
                           float& dry, float& send, int n = kMixLayers)
 {
@@ -487,20 +575,27 @@ inline void layerSendMix (const float* layer, const float* amp, const float* sen
 }
 
 inline void layerSendMixSplit (const float* layer, const float* amp, const float* sendAmt,
-                               const bool* isWide, float& mid, float& wide,
-                               float& send, int n = kMixLayers)
+                               const bool* isWide, const float* pan, const float* drive,
+                               float& mid, float& wide, float& send,
+                               float& extraL, float& extraR, int n = kMixLayers)
 {
     mid = 0.f;
     wide = 0.f;
     send = 0.f;
+    extraL = 0.f;
+    extraR = 0.f;
     for (int i = 0; i < n; ++i)
     {
-        const float y = layer[i] * amp[i];
+        const float y = layerDriveSamp (layer[i] * amp[i], drive[i]);
         send += y * sendAmt[i];
         if (isWide[i])
             wide += y;
         else
             mid += y;
+        float gL = 1.f, gR = 1.f;
+        panGains (pan[i], gL, gR);
+        extraL += y * (gL - 1.f);
+        extraR += y * (gR - 1.f);
     }
 }
 

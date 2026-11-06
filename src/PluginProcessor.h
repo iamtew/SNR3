@@ -83,6 +83,7 @@ private:
     void fillSends (float* out) const;
     void applyVelocity (snr3::SnareParams& p, float* amp, int vel) const;
     void fillWide (bool* out) const;
+    void fillPanDrive (float* pan, float* drive) const;
     void bindSample (snr3::SampleVoice::Params& p) const;
 
     std::atomic<bool> loopOn { false };

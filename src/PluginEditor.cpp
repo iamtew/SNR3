@@ -82,6 +82,8 @@ void eachLayerVoiceId (Fn&& fn)
         fn (ParamID::lySend[layer]);
         fn (ParamID::lyDelay[layer]);
         fn (ParamID::lyAtk[layer]);
+        fn (ParamID::lyPan[layer]);
+        fn (ParamID::lyDrive[layer]);
     }
     fn (ParamID::tune);
     fn (ParamID::shellDec);
@@ -92,12 +94,19 @@ void eachLayerVoiceId (Fn&& fn)
     fn (ParamID::wiresHp);
     fn (ParamID::wiresLp);
     fn (ParamID::wiresLen);
+    fn (ParamID::wiresBuzz);
+    fn (ParamID::wiresColor);
     fn (ParamID::stickDec);
     fn (ParamID::stickTone);
     fn (ParamID::stickLen);
+    fn (ParamID::stickHard);
+    fn (ParamID::stickClick);
     fn (ParamID::sampleHp);
     fn (ParamID::sampleLp);
     fn (ParamID::sampleLen);
+    fn (ParamID::sampleStart);
+    fn (ParamID::sampleRev);
+    fn (ParamID::sampleDec);
     fn (ParamID::duckDepth);
     fn (ParamID::duckTime);
 }
@@ -958,6 +967,10 @@ SNR3AudioProcessorEditor::SNR3AudioProcessorEditor (SNR3AudioProcessor& p)
     sampleLoadBtn.setClickingTogglesState (false);
     sampleLoadBtn.onClick = [this] { chooseSample(); };
     content.addAndMakeVisible (sampleLoadBtn);
+    sampleRevBtn.setClickingTogglesState (true);
+    content.addAndMakeVisible (sampleRevBtn);
+    sampleRevAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        proc.apvts, ParamID::sampleRev, sampleRevBtn);
 
     patchBar.onStep = [this] (int d) { cyclePatch (d); };
     patchBar.onOpen = [this] { openPatchMenu(); };
@@ -1266,7 +1279,12 @@ void SNR3AudioProcessorEditor::layoutContent()
         for (auto* k : knobs)
             if (k->used)
                 ++usedN;
-        sampleLoadBtn.setBounds (cellAt (usedN).reduced (8, juce::jmax (0, (cellH - 28) / 2)));
+        const auto btnR = [&] (int i)
+        {
+            return cellAt (i).reduced (8, juce::jmax (0, (cellH - 28) / 2));
+        };
+        sampleLoadBtn.setBounds (btnR (usedN));
+        sampleRevBtn.setBounds (btnR (usedN + 1));
     }
     if (! mixView)
         for (int i = 0; i < knobs.size(); ++i)
@@ -1341,6 +1359,8 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::velAmt, "Vel");
         add (ParamID::width, "Width");
         add (ParamID::lyDelay[0], "Delay");
+        add (ParamID::lyPan[0], "Pan");
+        add (ParamID::lyDrive[0], "Drive");
     }
     else if (selectedLayer == 1)
     {
@@ -1350,6 +1370,10 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::wiresLen, "Length");
         add (ParamID::lyAtk[1], "Attack");
         add (ParamID::lyDelay[1], "Pre");
+        add (ParamID::wiresBuzz, "Buzz");
+        add (ParamID::wiresColor, "Color");
+        add (ParamID::lyPan[1], "Pan");
+        add (ParamID::lyDrive[1], "Drive");
     }
     else if (selectedLayer == 2)
     {
@@ -1358,6 +1382,10 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::stickLen, "Length");
         add (ParamID::lyAtk[2], "Attack");
         add (ParamID::lyDelay[2], "Pre");
+        add (ParamID::stickHard, "Hard");
+        add (ParamID::stickClick, "Click");
+        add (ParamID::lyPan[2], "Pan");
+        add (ParamID::lyDrive[2], "Drive");
     }
     else
     {
@@ -1366,6 +1394,10 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::sampleLen, "Length");
         add (ParamID::lyAtk[3], "Attack");
         add (ParamID::lyDelay[3], "Pre");
+        add (ParamID::sampleStart, "Start");
+        add (ParamID::sampleDec, "Decay");
+        add (ParamID::lyPan[3], "Pan");
+        add (ParamID::lyDrive[3], "Drive");
     }
 
     for (int i = 0; i < knobs.size(); ++i)
@@ -1411,6 +1443,7 @@ void SNR3AudioProcessorEditor::applyPageVisibility()
     for (auto* k : knobs)
         k->setVisible (((showKnobs || showMixKnobs) && k->used));
     sampleLoadBtn.setVisible (showKnobs && selectedLayer == 3);
+    sampleRevBtn.setVisible (showKnobs && selectedLayer == 3);
     layerEq.setVisible (showEq);
     layerMix.setVisible (main && mixView);
     eqBtn.setVisible (main && ! mixView);

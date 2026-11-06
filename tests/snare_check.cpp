@@ -177,6 +177,115 @@ int main()
         return 1;
     }
 
+    if (snr3::layerDriveSamp (0.25f, 0.f) != 0.25f)
+    {
+        std::printf ("fail: drive 0 bypass\n");
+        return 1;
+    }
+    {
+        float gL = 0.f, gR = 0.f;
+        snr3::panGains (0.f, gL, gR);
+        if (std::fabs (gL - 1.f) > 1.0e-5f || std::fabs (gR - 1.f) > 1.0e-5f)
+        {
+            std::printf ("fail: pan centre %g %g\n", gL, gR);
+            return 1;
+        }
+    }
+
+    {
+        snr3::SnareParams a, b;
+        std::vector<float> wa ((size_t) n), wb ((size_t) n);
+        renderLayer (1, a, wa.data(), n, sr);
+        b.wires.buzz = 0.f;
+        b.wires.color = 0.f;
+        renderLayer (1, b, wb.data(), n, sr);
+        float d = 0.f;
+        for (int i = 0; i < n; ++i)
+            d = std::max (d, std::abs (wa[(size_t) i] - wb[(size_t) i]));
+        if (d > 0.f)
+        {
+            std::printf ("fail: wires buzz/color 0 d=%g\n", d);
+            return 1;
+        }
+        b.wires.buzz = 1.f;
+        std::vector<float> buzzed ((size_t) n);
+        renderLayer (1, b, buzzed.data(), n, sr);
+        if (energy (buzzed.data(), n) <= energy (wa.data(), n) * 0.99f)
+        {
+            std::printf ("fail: wires buzz energy\n");
+            return 1;
+        }
+
+        snr3::SnareParams s0, s1;
+        std::vector<float> st0 ((size_t) n), st1 ((size_t) n);
+        renderLayer (2, s0, st0.data(), n, sr);
+        s1.stick.hard = 0.f;
+        s1.stick.click = 0.f;
+        renderLayer (2, s1, st1.data(), n, sr);
+        d = 0.f;
+        for (int i = 0; i < n; ++i)
+            d = std::max (d, std::abs (st0[(size_t) i] - st1[(size_t) i]));
+        if (d > 0.f)
+        {
+            std::printf ("fail: stick hard/click 0 d=%g\n", d);
+            return 1;
+        }
+        s1.stick.click = 1.f;
+        std::vector<float> clicked ((size_t) n);
+        renderLayer (2, s1, clicked.data(), n, sr);
+        if (energy (clicked.data(), n) <= energy (st0.data(), n))
+        {
+            std::printf ("fail: stick click energy\n");
+            return 1;
+        }
+    }
+
+    {
+        float wav[64];
+        for (int i = 0; i < 64; ++i)
+            wav[i] = i < 4 ? 1.f : (i >= 60 ? 0.5f : 0.f);
+        snr3::SnareParams sm;
+        sm.sample.data = wav;
+        sm.sample.n = 64;
+        sm.sample.fileSr = sr;
+        sm.sample.hpfHz = 20.f;
+        sm.sample.lpfHz = 20000.f;
+        std::vector<float> fwd ((size_t) 256, 0.f), late ((size_t) 256, 0.f), rev ((size_t) 256, 0.f);
+        renderLayer (3, sm, fwd.data(), 256, sr);
+        sm.sample.start01 = 0.8f;
+        renderLayer (3, sm, late.data(), 256, sr);
+        sm.sample.start01 = 0.f;
+        sm.sample.reverse = true;
+        renderLayer (3, sm, rev.data(), 256, sr);
+        if (energy (fwd.data(), 8) <= 0.f)
+        {
+            std::printf ("fail: sample start 0 silent\n");
+            return 1;
+        }
+        if (energy (late.data(), 8) >= energy (fwd.data(), 8) * 0.5f)
+        {
+            std::printf ("fail: sample start did not skip\n");
+            return 1;
+        }
+        if (energy (rev.data(), 8) <= 0.f)
+        {
+            std::printf ("fail: sample reverse silent\n");
+            return 1;
+        }
+        sm.sample.reverse = false;
+        sm.sample.decaySec = 0.f;
+        std::vector<float> off ((size_t) 256, 0.f);
+        renderLayer (3, sm, off.data(), 256, sr);
+        float dd = 0.f;
+        for (int i = 0; i < 256; ++i)
+            dd = std::max (dd, std::abs (fwd[(size_t) i] - off[(size_t) i]));
+        if (dd > 0.f)
+        {
+            std::printf ("fail: sample decay 0 d=%g\n", dd);
+            return 1;
+        }
+    }
+
     std::printf ("ok\n");
     return 0;
 }

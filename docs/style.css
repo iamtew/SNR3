@@ -57,7 +57,7 @@ nav a {
   font-weight: 700;
   text-decoration: none;
   padding: 0.1rem 0.45rem;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 nav a.on,
@@ -136,7 +136,7 @@ h1 { font-size: 2rem; }
   font-weight: 700;
   text-decoration: none;
   padding: 0.35rem 0.9rem;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .download:hover {

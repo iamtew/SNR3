@@ -46,6 +46,23 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     auto sampleHpR = NormalisableRange<float> (80.f, 8000.f, 1.f, 0.3f);
     auto sampleLpR = NormalisableRange<float> (200.f, 16000.f, 1.f, 0.3f);
     auto sampleLenR = NormalisableRange<float> (0.f, 2000.f, 1.f, 0.4f);
+    auto atkR = NormalisableRange<float> (0.f, 30.f, 0.1f);
+    auto autoLenAttrs = [] (NormalisableRange<float> range)
+    {
+        return AudioParameterFloatAttributes()
+            .withStringFromValueFunction ([] (float v, int)
+            {
+                if (v <= 0.f)
+                    return String ("Auto");
+                return String (roundToInt (v)) + " ms";
+            })
+            .withValueFromStringFunction ([range] (const String& t)
+            {
+                if (t.containsIgnoreCase ("auto"))
+                    return 0.f;
+                return jlimit (range.start, range.end, t.getFloatValue());
+            });
+    };
 
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::tune, 1 }, "Tune", tuneR, 185.f,
@@ -73,6 +90,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::wiresTone, 1 }, "Wires Tone", toneR, 3500.f, hzAttrs (toneR)));
     layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::wiresHp, 1 }, "Wires HPF", sampleHpR, 1225.f, hzAttrs (sampleHpR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::wiresLp, 1 }, "Wires LPF", sampleLpR, 7700.f, hzAttrs (sampleLpR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::stickDec, 1 }, "Stick Decay", stickMsR, 8.f,
         AudioParameterFloatAttributes()
             .withStringFromValueFunction ([] (float v, int)
@@ -90,20 +111,13 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::sampleLp, 1 }, "Sample LPF", sampleLpR, 16000.f, hzAttrs (sampleLpR)));
     layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::sampleLen, 1 }, "Sample Length", sampleLenR, 0.f,
-        AudioParameterFloatAttributes()
-            .withStringFromValueFunction ([] (float v, int)
-            {
-                if (v <= 0.f)
-                    return String ("Auto");
-                return String (roundToInt (v)) + " ms";
-            })
-            .withValueFromStringFunction ([sampleLenR] (const String& t)
-            {
-                if (t.containsIgnoreCase ("auto"))
-                    return 0.f;
-                return jlimit (sampleLenR.start, sampleLenR.end, t.getFloatValue());
-            })));
+        ParameterID { ParamID::sampleLen, 1 }, "Sample Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::shellLen, 1 }, "Shell Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::wiresLen, 1 }, "Wires Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::stickLen, 1 }, "Stick Length", sampleLenR, 0.f, autoLenAttrs (sampleLenR)));
     layout.add (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::level, 1 },
                                                         "Volume", unit, 0.75f, pct (unit)));
     layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::length, 1 },
@@ -122,6 +136,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                          "Shape",
                                                          StringArray { "Sine", "Tri" },
                                                          0));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::harm, 1 }, "Harm", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::velAmt, 1 }, "Vel", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
@@ -222,6 +238,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             });
     };
     const char* who[] = { "Shell", "Wires", "Stick", "Sample" };
+    const float atkDef[] = { 0.4f, 0.3f, 0.2f, 0.f };
     for (int i = 0; i < ParamID::layerCount; ++i)
     {
         addUnit (ParamID::lyGain[i], (String (who[i]) + " Gain").toRawUTF8(), 1.f);
@@ -231,6 +248,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         addUnit (ParamID::lySend[i], (String (who[i]) + " Send").toRawUTF8(), 1.f);
         layout.add (std::make_unique<AudioParameterFloat> (
             ParameterID { ParamID::lyDelay[i], 1 }, String (who[i]) + " Delay", delayR, 0.f, msAttrs (delayR)));
+        layout.add (std::make_unique<AudioParameterFloat> (
+            ParameterID { ParamID::lyAtk[i], 1 }, String (who[i]) + " Attack", atkR, atkDef[i], msAttrs (atkR)));
     }
 
     for (int layer = 0; layer < ParamID::layerCount; ++layer)

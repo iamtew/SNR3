@@ -60,9 +60,10 @@ nav a {
   border-radius: 2px;
 }
 
-nav a.on {
-  color: var(--ink);
-  background: var(--rust);
+nav a.on,
+.download {
+  background: linear-gradient(135deg, var(--rust), var(--brass));
+  color: var(--white);
 }
 
 main {
@@ -132,15 +133,16 @@ h1 { font-size: 2rem; }
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: var(--rust);
-  color: var(--white);
   font-weight: 700;
   text-decoration: none;
   padding: 0.35rem 0.9rem;
   border-radius: 2px;
 }
 
-.download:hover { background: var(--brass); color: var(--ink); }
+.download:hover {
+  background: linear-gradient(135deg, var(--brass), var(--rust));
+  color: var(--ink);
+}
 
 .ico {
   width: 1.15em;

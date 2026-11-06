@@ -1,4 +1,5 @@
 #include "dsp/SnareRender.h"
+#include "presets/FactoryPresets.h"
 
 #include <cmath>
 #include <cstdio>
@@ -84,6 +85,14 @@ int main()
     if (d >= u)
     {
         std::printf ("fail: duck did not dip Shell (%g vs %g)\n", d, u);
+        return 1;
+    }
+
+    if (! snr3::factoryBankOk() || snr3::factoryPresetCount < 60
+        || snr3::findFactoryPreset ("Punch") == nullptr
+        || snr3::findFactoryPreset ("Init Patch") != nullptr)
+    {
+        std::printf ("fail: factory bank\n");
         return 1;
     }
 

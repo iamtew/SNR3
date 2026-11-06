@@ -25,4 +25,4 @@ Dist → Delay → Reverb send, then 5-band post EQ. Dry / FX mix.
 
 Play, Loop + BPM. Export WAV (24-bit, Norm −0.1 dBTP default on). Drag the waveform for the same WAV plus a `.snr3p` patch.
 
-Patches live in `%AppData%\Stupid Audio\SNR3\Patches`.
+**Init Patch** (title bar) — a factory preset shows as Category / Name. Click for Init / Save / Save As / Export / Import, a factory category, or your saved list. Chevrons step the factory bank, then any extra patches. Your files live in `%AppData%\Stupid Audio\SNR3\Patches` as `.snr3p`. Saving a factory name stores your copy there; delete that file to hear the factory sound again.

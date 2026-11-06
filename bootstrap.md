@@ -19,7 +19,7 @@ This file is the spec. Future agents bootstrap the project from it. Do not inven
 - Hybrid voice: thin synthetic core + first-class Sample (user WAV/AIFF/FLAC, no factory library; missing file = silence)
 - MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune knob is for Standalone Play, waveform, and WAV export.
 
-Default sound: 909-ish snare (short stick, mid wires, short shell). Named style bank later. Do not port K1X 808 / 707 / Tight / Hard until asked.
+Default sound: 909-ish snare (short stick, mid wires, short shell). Named factory bank in the patch menu. Do not port K1X 808 / 707 / Tight / Hard as a DSP Style knob.
 
 ## Layers
 
@@ -92,7 +92,7 @@ README stays small. LICENSE is MIT. `docs/` is the gh-pages site (markdown rende
 
 ## Bootstrap steps
 
-Stop at a playable one-shot + WAV export. Factory styles and a real logo are later. Write `AGENTS.md` and `README.md` when the project exists, from this file.
+Stop at a playable one-shot + WAV export. Factory bank and `assets/logo.png` are in. Write `AGENTS.md` and `README.md` when the project exists, from this file.
 
 1. Projucer: SNR3, VST3 + Standalone, C++17, company Stupid Audio. Put sources under `src/`.
 2. Copy recipes and structure from K1X `justfile`, `.github/workflows/dist.yml`, and docs site shell. Retarget names. Do not copy `src/dsp/KickVoice.h`.

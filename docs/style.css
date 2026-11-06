@@ -13,7 +13,7 @@
 
 body {
   margin: 0;
-  background: var(--background);
+  background: radial-gradient(ellipse at 50% 42%, #120e0b 0%, var(--background) 72%);
   color: var(--metal);
   font: 18px/1.5 system-ui, sans-serif;
 }

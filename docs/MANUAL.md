@@ -1,0 +1,28 @@
+# SNR3 manual
+
+Snare one-shot. VST3 + Standalone. Stupid Audio. MIT.
+
+## Main
+
+Waveform is the layered mix you hear on Play, before post FX. Select a rail layer to overlay that stem. Mix is mute / solo / gain / phase / Delay or Pre / Send. Duck / Time dips Shell when Stick hits.
+
+MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune is for Standalone Play, the waveform, and WAV export.
+
+## Layers
+
+- **Shell** — pitched body (Tune, Decay, Tone)
+- **Wires** — snare-wire noise (Decay, Tone)
+- **Stick** — beater / click (Decay, Tone)
+- **Sample** — user WAV/AIFF/FLAC, linear resample, no pitch. Missing file = silence.
+
+Length: Free / 1/4 / 1/8 / 1/16 + Hold.
+
+## Effects
+
+Dist → Delay → Reverb send, then 5-band post EQ. Dry / FX mix.
+
+## Standalone
+
+Play, Loop + BPM. Export WAV (24-bit, Norm −0.1 dBTP default on). Drag the waveform for the same WAV plus a `.snr3p` patch.
+
+Patches live in `%AppData%\Stupid Audio\SNR3\Patches`.

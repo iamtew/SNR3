@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SNR3 | snare drum</title>
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <header>
+    <a class="brand" href="#top"><img src="logo.png" alt="" width="36" height="36">SNR3</a>
+    <nav>
+      <a href="#sound">Sound</a>
+      <a href="#standalone">Standalone</a>
+      <a href="notes.html?doc=MANUAL.md">Manual</a>
+      <a href="#notes">Notes</a>
+      <a href="https://audio.stupid.systems/">Stupid Audio</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="lead">
+      <img class="hero" src="logo.png" alt="SNR3" width="160" height="160">
+      <div>
+        <h1>SNR3</h1>
+        <p class="tag">Snare one-shot. 909-ish default.</p>
+      </div>
+    </div>
+    <p>Thin synthetic core (Shell, Wires, Stick) plus a user Sample. Mix, per-layer EQ, parallel post FX, length snap, WAV export with Norm.</p>
+    <p>Part of <a href="https://audio.stupid.systems/">Stupid Audio</a> — five free instruments in one pack. The other four live over there.</p>
+    <p class="actions">
+      <a class="download" href="https://github.com/iamtew/SNR3/releases/latest">Download</a>
+      <a href="https://github.com/iamtew/SNR3">GitHub</a>
+    </p>
+    <p class="meta">VST3 and standalone.</p>
+
+    <section id="sound" class="card">
+      <h2>Sound</h2>
+      <p>Shell is the pitched body. Wires are bandpassed noise. Stick is a short click. Sample is your WAV/AIFF/FLAC, linear resample, no pitch; a missing file is silence. Mix is mute / solo / gain / phase / Delay / Send. Duck dips Shell when Stick hits. Effects is Dist → Delay → Reverb send plus 5-band post EQ. The waveform is the layered mix before post FX.</p>
+    </section>
+
+    <section id="standalone" class="card">
+      <h2>Standalone</h2>
+      <p>Play is a one-shot. Loop (BPM 40–240, default 140) repeats until you hit Play again. Hosts hide Play / Loop / BPM and use MIDI. MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). The Tune knob is for Play, the waveform, and WAV export. Export WAV writes 24-bit stereo including FX tail, 44.1 or 48 kHz. Norm (default on) peaks to −0.1 dBTP.</p>
+    </section>
+
+    <section id="notes">
+      <h2>Notes</h2>
+      <a href="notes.html?doc=MANUAL.md">Manual</a>
+      <a href="notes.html?doc=PRD.md">Brief</a>
+      <a href="notes.html?doc=ARCHITECTURE.md">Architecture</a>
+      <a href="notes.html?doc=DSP_NOTES.md">DSP notes</a>
+    </section>
+  </main>
+  <script type="module" src="fx.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>

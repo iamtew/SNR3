@@ -919,6 +919,21 @@ SNR3AudioProcessorEditor::SNR3AudioProcessorEditor (SNR3AudioProcessor& p)
         box.setColour (juce::ComboBox::arrowColourId, kMetal);
         content.addAndMakeVisible (box);
     };
+    setupCombo (styleLabel, styleBox, "Style");
+    styleBox.addItem ("Classic", 1);
+    styleBox.addItem ("Fat", 2);
+    styleBox.addItem ("Snap", 3);
+    styleBox.addItem ("Tight", 4);
+    styleBox.addItem ("Hard", 5);
+    styleAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::style, styleBox);
+
+    setupCombo (shapeLabel, shapeBox, "Shape");
+    shapeBox.addItem ("Sine", 1);
+    shapeBox.addItem ("Tri", 2);
+    shapeAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        proc.apvts, ParamID::bodyShape, shapeBox);
+
     setupCombo (lengthLabel, lengthBox, "Length");
     lengthBox.addItem ("Free", 1);
     lengthBox.addItem ("1/4", 2);
@@ -1025,8 +1040,8 @@ SNR3AudioProcessorEditor::SNR3AudioProcessorEditor (SNR3AudioProcessor& p)
     for (auto* id : { ParamID::tune, ParamID::shellDec, ParamID::shellTone, ParamID::wiresDec,
                       ParamID::wiresTone, ParamID::stickDec, ParamID::stickTone, ParamID::sampleHp,
                       ParamID::sampleLp, ParamID::sampleLen, ParamID::level, ParamID::length,
-                      ParamID::holdMode, ParamID::velAmt, ParamID::width, ParamID::duckDepth,
-                      ParamID::duckTime })
+                      ParamID::holdMode, ParamID::style, ParamID::bodyShape, ParamID::velAmt,
+                      ParamID::width, ParamID::duckDepth, ParamID::duckTime })
         proc.apvts.addParameterListener (id, this);
     eachLayerEqId ([this] (const char* id) { proc.apvts.addParameterListener (id, this); });
     eachLayerVoiceId ([this] (const char* id) { proc.apvts.addParameterListener (id, this); });
@@ -1052,8 +1067,8 @@ SNR3AudioProcessorEditor::~SNR3AudioProcessorEditor()
     for (auto* id : { ParamID::tune, ParamID::shellDec, ParamID::shellTone, ParamID::wiresDec,
                       ParamID::wiresTone, ParamID::stickDec, ParamID::stickTone, ParamID::sampleHp,
                       ParamID::sampleLp, ParamID::sampleLen, ParamID::level, ParamID::length,
-                      ParamID::holdMode, ParamID::velAmt, ParamID::width, ParamID::duckDepth,
-                      ParamID::duckTime })
+                      ParamID::holdMode, ParamID::style, ParamID::bodyShape, ParamID::velAmt,
+                      ParamID::width, ParamID::duckDepth, ParamID::duckTime })
         proc.apvts.removeParameterListener (id, this);
     eachLayerEqId ([this] (const char* id) { proc.apvts.removeParameterListener (id, this); });
     eachLayerVoiceId ([this] (const char* id) { proc.apvts.removeParameterListener (id, this); });
@@ -1194,6 +1209,12 @@ void SNR3AudioProcessorEditor::layoutContent()
 
     auto tools = r.removeFromTop (28);
     eqBtn.setBounds (tools.removeFromRight (52).reduced (0, 2));
+    styleLabel.setBounds (tools.removeFromLeft (44));
+    styleBox.setBounds (tools.removeFromLeft (80).reduced (0, 2));
+    tools.removeFromLeft (4);
+    shapeLabel.setBounds (tools.removeFromLeft (40));
+    shapeBox.setBounds (tools.removeFromLeft (64).reduced (0, 2));
+    tools.removeFromLeft (8);
     lengthLabel.setBounds (tools.removeFromLeft (52));
     lengthBox.setBounds (tools.removeFromLeft (80).reduced (0, 2));
     tools.removeFromLeft (4);

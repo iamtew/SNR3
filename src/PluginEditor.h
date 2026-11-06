@@ -241,6 +241,12 @@ private:
     WaveView wave;
     LayerRail rail { *this };
     juce::OwnedArray<Knob> knobs;
+    juce::Label styleLabel;
+    juce::ComboBox styleBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> styleAtt;
+    juce::Label shapeLabel;
+    juce::ComboBox shapeBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> shapeAtt;
     juce::Label lengthLabel;
     juce::ComboBox lengthBox;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lengthAtt;

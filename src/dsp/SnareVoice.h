@@ -7,6 +7,17 @@ namespace snr3
 {
 
 inline constexpr int kMixLayers = 4; // Shell, Wires, Stick, Sample
+inline constexpr float kWiresHpMul = 0.35f;
+inline constexpr float kWiresLpMul = 2.2f;
+
+inline float wiresHpFromTone (float toneHz) { return toneHz * kWiresHpMul; }
+inline float wiresLpFromTone (float toneHz) { return toneHz * kWiresLpMul; }
+
+// Auto (0 ms) follows the global Length snap.
+inline float layerLifeSec (float lengthMs, float globalSec)
+{
+    return lengthMs > 0.f ? lengthMs * 0.001f : globalSec;
+}
 
 // vel 127 or amt 0 = 1.
 inline float velScale (int vel, float amt)
@@ -151,9 +162,10 @@ struct ShellVoice
         float toneHz = 3500.f;
         float delayMs = 0.f;
         float lengthSec = 0.f;
+        float attackMs = 0.4f;
         bool holdNote = false;
         int bodyShape = 0;   // 0 sine, 1 tri
-        float harmonic = 0.f; // extra 2nd from Style
+        float harmonic = 0.f; // user Harm + Style 2nd
     };
 
     void prepare (double sampleRate)
@@ -175,7 +187,7 @@ struct ShellVoice
             life = 32.f;
         if (params.lengthSec > 0.f)
             life = params.lengthSec;
-        clock.arm (params.delayMs, life, 0.4f);
+        clock.arm (params.delayMs, life, params.attackMs);
     }
 
     void silence() { clock.silence(); }
@@ -235,9 +247,11 @@ struct WiresVoice
     struct Params
     {
         float decay = 0.22f;
-        float toneHz = 3500.f;
+        float hpHz = 1225.f;
+        float lpHz = 7700.f;
         float delayMs = 0.f;
         float lengthSec = 0.f;
+        float attackMs = 0.3f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -252,7 +266,7 @@ struct WiresVoice
             life = 0.05f;
         if (params.lengthSec > 0.f)
             life = params.lengthSec;
-        clock.arm (params.delayMs, life, 0.3f);
+        clock.arm (params.delayMs, life, params.attackMs);
     }
 
     void silence() { clock.silence(); }
@@ -264,9 +278,7 @@ struct WiresVoice
             return 0.f;
         const double t = (double) clock.pos / clock.sr;
         const float n = noiseUni (noise);
-        const float hpHz = params.toneHz * 0.35f;
-        const float lpHz = params.toneHz * 2.2f;
-        float hp = hpHz, lp = lpHz;
+        float hp = params.hpHz, lp = params.lpHz;
         layerSortBand (hp, lp);
         const float hpC = layerOnePole (hp, clock.sr);
         const float lpC = layerOnePole (lp, clock.sr);
@@ -295,6 +307,7 @@ struct StickVoice
         float toneHz = 2500.f;
         float delayMs = 0.f;
         float lengthSec = 0.f;
+        float attackMs = 0.2f;
         float gain = 1.f;
     };
 
@@ -310,7 +323,7 @@ struct StickVoice
             life = 0.008f;
         if (params.lengthSec > 0.f)
             life = params.lengthSec;
-        clock.arm (params.delayMs, life, 0.2f);
+        clock.arm (params.delayMs, life, params.attackMs);
     }
 
     void silence() { clock.silence(); }
@@ -515,6 +528,7 @@ struct SnareParams
     float duckTimeMs = 1.5f;
     int style = 0;     // Classic Fat Snap Tight Hard
     int bodyShape = 0; // 0 sine, 1 tri
+    float harm = 0.f;
 };
 
 // Knobs stay put. Style only scales stick / decays and a Style-owned 2nd.
@@ -539,7 +553,7 @@ inline void applyStyle (SnareParams& p)
         p.shell.decay = 0.02f;
     if (p.wires.decay < 0.02f)
         p.wires.decay = 0.02f;
-    p.shell.harmonic = harmonic;
+    p.shell.harmonic = p.harm + harmonic;
     p.shell.bodyShape = p.bodyShape;
 }
 

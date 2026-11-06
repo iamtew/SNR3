@@ -34,6 +34,16 @@ juce::String legalStem (const juce::String& name)
     return stem;
 }
 
+bool xmlHasParam (const juce::XmlElement& xml, const juce::String& id)
+{
+    if (xml.getStringAttribute ("id") == id || xml.hasTagName (id))
+        return true;
+    for (auto* c : xml.getChildIterator())
+        if (xmlHasParam (*c, id))
+            return true;
+    return false;
+}
+
 void setParam (juce::AudioProcessorValueTreeState& apvts, const char* id, float value)
 {
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (id)))
@@ -53,6 +63,8 @@ void applyFactory (SNR3AudioProcessor& proc, const snr3::FactoryPreset& preset)
     setParam (apvts, ParamID::shellTone, preset.shellTone);
     setParam (apvts, ParamID::wiresDec, preset.wiresDec);
     setParam (apvts, ParamID::wiresTone, preset.wiresTone);
+    setParam (apvts, ParamID::wiresHp, snr3::wiresHpFromTone (preset.wiresTone));
+    setParam (apvts, ParamID::wiresLp, snr3::wiresLpFromTone (preset.wiresTone));
     setParam (apvts, ParamID::stickDec, preset.stickDec);
     setParam (apvts, ParamID::stickTone, preset.stickTone);
     setParam (apvts, ParamID::lyGain[0], preset.shellGain);
@@ -193,8 +205,8 @@ void SNR3AudioProcessor::bindSample (snr3::SampleVoice::Params& p) const
     p.delayMs = raw (ParamID::lyDelay[3]);
     const float ms = raw (ParamID::sampleLen);
     const float lengthSec = snr3::lengthSeconds (lengthChoice(), hostBpm());
-    p.lengthSec = ms > 0.f ? ms * 0.001f : lengthSec;
-    p.attackMs = 0.f;
+    p.lengthSec = snr3::layerLifeSec (ms, lengthSec);
+    p.attackMs = raw (ParamID::lyAtk[3]);
 }
 
 void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
@@ -204,21 +216,26 @@ void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
     p.shell.decay = raw (ParamID::shellDec);
     p.shell.toneHz = raw (ParamID::shellTone);
     p.shell.delayMs = raw (ParamID::lyDelay[0]);
-    p.shell.lengthSec = lengthSec;
+    p.shell.lengthSec = snr3::layerLifeSec (raw (ParamID::shellLen), lengthSec);
+    p.shell.attackMs = raw (ParamID::lyAtk[0]);
     p.shell.holdNote = juce::roundToInt (raw (ParamID::holdMode)) != 0;
     p.wires.decay = raw (ParamID::wiresDec);
-    p.wires.toneHz = raw (ParamID::wiresTone);
+    p.wires.hpHz = raw (ParamID::wiresHp);
+    p.wires.lpHz = raw (ParamID::wiresLp);
     p.wires.delayMs = raw (ParamID::lyDelay[1]);
-    p.wires.lengthSec = lengthSec;
+    p.wires.lengthSec = snr3::layerLifeSec (raw (ParamID::wiresLen), lengthSec);
+    p.wires.attackMs = raw (ParamID::lyAtk[1]);
     p.stick.decayMs = raw (ParamID::stickDec);
     p.stick.toneHz = raw (ParamID::stickTone);
     p.stick.delayMs = raw (ParamID::lyDelay[2]);
-    p.stick.lengthSec = lengthSec;
+    p.stick.lengthSec = snr3::layerLifeSec (raw (ParamID::stickLen), lengthSec);
+    p.stick.attackMs = raw (ParamID::lyAtk[2]);
     bindSample (p.sample);
     p.duckDepth = raw (ParamID::duckDepth);
     p.duckTimeMs = raw (ParamID::duckTime);
     p.style = juce::roundToInt (raw (ParamID::style));
     p.bodyShape = juce::roundToInt (raw (ParamID::bodyShape));
+    p.harm = raw (ParamID::harm);
 }
 
 snr3::SnareParams SNR3AudioProcessor::currentParams() const
@@ -836,6 +853,12 @@ void SNR3AudioProcessor::setStateInformation (const void* data, int sizeInBytes)
             xml->removeAttribute ("wavSr");
             xml->removeAttribute ("wavNorm");
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            if (xmlHasParam (*xml, ParamID::wiresTone) && ! xmlHasParam (*xml, ParamID::wiresHp))
+            {
+                const float tone = raw (ParamID::wiresTone);
+                setParam (apvts, ParamID::wiresHp, snr3::wiresHpFromTone (tone));
+                setParam (apvts, ParamID::wiresLp, snr3::wiresLpFromTone (tone));
+            }
             reloadSample();
         }
 }

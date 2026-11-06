@@ -129,6 +129,46 @@ int main()
         }
     }
 
+    {
+        auto bin2 = [] (const float* x, int n, float hz, double srate) -> float
+        {
+            const float w = 6.283185307179586f * hz / (float) srate;
+            const float coeff = 2.f * std::cos (w);
+            float s1 = 0.f, s2 = 0.f;
+            for (int i = 0; i < n; ++i)
+            {
+                const float s0 = x[i] + coeff * s1 - s2;
+                s2 = s1;
+                s1 = s0;
+            }
+            return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+        };
+        snr3::SnareParams h0, h1;
+        h1.harm = 1.f;
+        std::vector<float> a ((size_t) 4096), b ((size_t) 4096);
+        renderLayer (0, h0, a.data(), 4096, sr);
+        renderLayer (0, h1, b.data(), 4096, sr);
+        const float f2 = h0.shell.tuneHz * 2.f;
+        const float e0 = bin2 (a.data(), 4096, f2, sr);
+        const float e1 = bin2 (b.data(), 4096, f2, sr);
+        if (e1 <= e0 * 1.5f)
+        {
+            std::printf ("fail: Harm 2x %g vs %g\n", e1, e0);
+            return 1;
+        }
+
+        snr3::SnareParams w;
+        w.wires.hpHz = 3000.f;
+        w.wires.lpHz = 4000.f;
+        std::vector<float> band ((size_t) n);
+        renderLayer (1, w, band.data(), n, sr);
+        if (energy (band.data(), n) < 0.01f)
+        {
+            std::printf ("fail: tight wires band energy %g\n", energy (band.data(), n));
+            return 1;
+        }
+    }
+
     if (! snr3::factoryBankOk() || snr3::factoryPresetCount < 60
         || snr3::findFactoryPreset ("Punch") == nullptr
         || snr3::findFactoryPreset ("Init Patch") != nullptr)

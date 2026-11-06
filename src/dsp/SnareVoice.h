@@ -531,7 +531,7 @@ struct SnareParams
     float harm = 0.f;
 };
 
-// Knobs stay put. Style only scales stick / decays and a Style-owned 2nd.
+// Knobs stay put. Style scales stick / decays and adds a 2nd on top of Harm.
 inline void applyStyle (SnareParams& p)
 {
     float stickTauMul = 1.f, stickMul = 1.f, dMul = 1.f, harmonic = 0.f;

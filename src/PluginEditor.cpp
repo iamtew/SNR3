@@ -81,14 +81,20 @@ void eachLayerVoiceId (Fn&& fn)
         fn (ParamID::lyFlip[layer]);
         fn (ParamID::lySend[layer]);
         fn (ParamID::lyDelay[layer]);
+        fn (ParamID::lyAtk[layer]);
     }
     fn (ParamID::tune);
     fn (ParamID::shellDec);
     fn (ParamID::shellTone);
+    fn (ParamID::shellLen);
+    fn (ParamID::harm);
     fn (ParamID::wiresDec);
-    fn (ParamID::wiresTone);
+    fn (ParamID::wiresHp);
+    fn (ParamID::wiresLp);
+    fn (ParamID::wiresLen);
     fn (ParamID::stickDec);
     fn (ParamID::stickTone);
+    fn (ParamID::stickLen);
     fn (ParamID::sampleHp);
     fn (ParamID::sampleLp);
     fn (ParamID::sampleLen);
@@ -1037,11 +1043,8 @@ SNR3AudioProcessorEditor::SNR3AudioProcessorEditor (SNR3AudioProcessor& p)
     content.addChildComponent (aboutBox);
     aboutBox.setVisible (false);
 
-    for (auto* id : { ParamID::tune, ParamID::shellDec, ParamID::shellTone, ParamID::wiresDec,
-                      ParamID::wiresTone, ParamID::stickDec, ParamID::stickTone, ParamID::sampleHp,
-                      ParamID::sampleLp, ParamID::sampleLen, ParamID::level, ParamID::length,
-                      ParamID::holdMode, ParamID::style, ParamID::bodyShape, ParamID::velAmt,
-                      ParamID::width, ParamID::duckDepth, ParamID::duckTime })
+    for (auto* id : { ParamID::level, ParamID::length, ParamID::holdMode, ParamID::style,
+                      ParamID::bodyShape, ParamID::velAmt, ParamID::width })
         proc.apvts.addParameterListener (id, this);
     eachLayerEqId ([this] (const char* id) { proc.apvts.addParameterListener (id, this); });
     eachLayerVoiceId ([this] (const char* id) { proc.apvts.addParameterListener (id, this); });
@@ -1064,11 +1067,8 @@ SNR3AudioProcessorEditor::SNR3AudioProcessorEditor (SNR3AudioProcessor& p)
 SNR3AudioProcessorEditor::~SNR3AudioProcessorEditor()
 {
     stopTimer();
-    for (auto* id : { ParamID::tune, ParamID::shellDec, ParamID::shellTone, ParamID::wiresDec,
-                      ParamID::wiresTone, ParamID::stickDec, ParamID::stickTone, ParamID::sampleHp,
-                      ParamID::sampleLp, ParamID::sampleLen, ParamID::level, ParamID::length,
-                      ParamID::holdMode, ParamID::style, ParamID::bodyShape, ParamID::velAmt,
-                      ParamID::width, ParamID::duckDepth, ParamID::duckTime })
+    for (auto* id : { ParamID::level, ParamID::length, ParamID::holdMode, ParamID::style,
+                      ParamID::bodyShape, ParamID::velAmt, ParamID::width })
         proc.apvts.removeParameterListener (id, this);
     eachLayerEqId ([this] (const char* id) { proc.apvts.removeParameterListener (id, this); });
     eachLayerVoiceId ([this] (const char* id) { proc.apvts.removeParameterListener (id, this); });
@@ -1152,7 +1152,7 @@ void SNR3AudioProcessorEditor::rebuildWave()
         o.colour = layerColour (layer);
         o.letter = layerMark (layer);
         o.delayMs = rawf (ParamID::lyDelay[layer]);
-        o.attackMs = 0.f;
+        o.attackMs = rawf (ParamID::lyAtk[layer]);
         o.mute = rawf (ParamID::lyMute[layer]) >= 0.5f;
         o.solo = rawf (ParamID::lySolo[layer]) >= 0.5f;
         wave.onsets.push_back (o);
@@ -1261,7 +1261,13 @@ void SNR3AudioProcessorEditor::layoutContent()
     };
     const bool showSampleLoad = editorPage == 0 && ! layerEqOpen && ! mixView && selectedLayer == 3;
     if (showSampleLoad)
-        sampleLoadBtn.setBounds (cellAt (4).reduced (8, juce::jmax (0, (cellH - 28) / 2)));
+    {
+        int usedN = 0;
+        for (auto* k : knobs)
+            if (k->used)
+                ++usedN;
+        sampleLoadBtn.setBounds (cellAt (usedN).reduced (8, juce::jmax (0, (cellH - 28) / 2)));
+    }
     if (! mixView)
         for (int i = 0; i < knobs.size(); ++i)
             knobs[i]->setBounds (cellAt (i));
@@ -1329,6 +1335,9 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::tune, "Tune");
         add (ParamID::shellDec, "Decay");
         add (ParamID::shellTone, "Tone");
+        add (ParamID::harm, "Harm");
+        add (ParamID::shellLen, "Length");
+        add (ParamID::lyAtk[0], "Attack");
         add (ParamID::velAmt, "Vel");
         add (ParamID::width, "Width");
         add (ParamID::lyDelay[0], "Delay");
@@ -1336,13 +1345,18 @@ void SNR3AudioProcessorEditor::bindKnobs()
     else if (selectedLayer == 1)
     {
         add (ParamID::wiresDec, "Decay");
-        add (ParamID::wiresTone, "Tone");
+        add (ParamID::wiresHp, "HPF");
+        add (ParamID::wiresLp, "LPF");
+        add (ParamID::wiresLen, "Length");
+        add (ParamID::lyAtk[1], "Attack");
         add (ParamID::lyDelay[1], "Pre");
     }
     else if (selectedLayer == 2)
     {
         add (ParamID::stickDec, "Decay");
         add (ParamID::stickTone, "Tone");
+        add (ParamID::stickLen, "Length");
+        add (ParamID::lyAtk[2], "Attack");
         add (ParamID::lyDelay[2], "Pre");
     }
     else
@@ -1350,6 +1364,7 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::sampleHp, "HPF");
         add (ParamID::sampleLp, "LPF");
         add (ParamID::sampleLen, "Length");
+        add (ParamID::lyAtk[3], "Attack");
         add (ParamID::lyDelay[3], "Pre");
     }
 

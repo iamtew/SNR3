@@ -1,6 +1,6 @@
 // PixiJS backdrop: snareScene, full-viewport, no CDN.
 const C = { rust: 0x8a3a22, brass: 0xc4a35a, cream: 0xe8dcc8 };
-const BPM = 150;
+const BPM = 128;
 const BEAT = 60 / BPM;
 const FLAM = 0.04;
 const ST = [0.18, 0.39, 0.61, 0.82];
@@ -113,21 +113,30 @@ function snareScene(PIXI, glow) {
   });
   let nextSpark = 0;
   const hits = [];
+  const pulse = [0, 0, 0, 0];
   let lastQ = -1;
   let lastFlamBar = -1;
   let env = 0;
 
+  function pos(t, w, h, slot, dx) {
+    const x = w * ST[slot] + dx + Math.sin(t * 1.6 + slot * 1.3) * 10;
+    const y = h * 0.42
+      + (slot - 1.5) * h * 0.055
+      + Math.sin(t * Math.PI / BEAT + slot * 0.9) * h * 0.06;
+    return { x, y };
+  }
+
   function spawn(t, w, h, slot, amp, nSparks, dx) {
-    const x = w * ST[slot] + dx;
-    const y = h * 0.45;
-    hits.push({ born: t, x, y, amp });
+    const { x, y } = pos(t, w, h, slot, dx);
+    hits.push({ born: t, slot, dx, amp, tilt: rand(-30, 30), wob: rand(-12, 12) });
     env = Math.max(env, amp);
+    pulse[slot] = Math.max(pulse[slot], amp);
     for (let i = 0; i < nSparks; i++) {
       const s = sparks[nextSpark++ % sparks.length];
       const side = Math.random() < 0.5 ? -1 : 1;
       s.x = x; s.y = y;
       s.vx = side * rand(180, 520);
-      s.vy = rand(-90, 90);
+      s.vy = rand(-140, 140);
       s.alpha = 0.4 + 0.6 * amp;
       s.scale.set(rand(0.12, 0.32) * (0.5 + amp));
     }
@@ -151,22 +160,32 @@ function snareScene(PIXI, glow) {
       }
       while (hits.length && t - hits[0].born > 0.5) hits.shift();
       env *= Math.exp(-dt * 16);
+      for (let i = 0; i < 4; i++) pulse[i] *= Math.exp(-dt * 6);
 
       ink.clear();
+      for (let slot = 0; slot < 4; slot++) {
+        const { x } = pos(t, w, h, slot, 0);
+        const p = 0.22 + 0.55 * pulse[slot];
+        glowLine(ink, [x, h * 0.08, x, h * 0.8], C.rust, p * 0.35);
+        glowLine(ink, [x + 9, h * 0.16, x + 9, h * 0.72], C.brass, p * 0.18);
+      }
       for (const hit of hits) {
         const a = t - hit.born;
         const life = 1 - a / 0.45;
         if (life <= 0) continue;
+        const { x, y } = pos(t, w, h, hit.slot, hit.dx);
+        const bob = Math.sin((t - hit.born) * 16 + hit.wob) * 7 * life;
         const len = (70 + 150 * hit.amp) * (0.35 + 0.65 * life);
         const nWires = 3 + Math.round(hit.amp * 3);
         for (let i = 0; i < nWires; i++) {
-          const dy = (i - (nWires - 1) / 2) * 4.5;
-          glowLine(ink, [hit.x - len, hit.y + dy, hit.x + len, hit.y + dy], C.brass, (0.35 + 0.65 * hit.amp) * life);
+          const dy = (i - (nWires - 1) / 2) * 4.5 + hit.wob * 0.35 + bob;
+          const tilt = hit.tilt * ((i / Math.max(nWires - 1, 1)) - 0.5);
+          glowLine(ink, [x - len, y + dy - tilt, x + len, y + dy + tilt], C.brass, (0.35 + 0.65 * hit.amp) * life);
         }
         if (a < 0.08) {
           const sl = 1 - a / 0.08;
           const hgt = 18 + 48 * hit.amp;
-          glowLine(ink, [hit.x, hit.y - hgt, hit.x, hit.y + hgt * 0.28], C.rust, sl * (0.5 + 0.5 * hit.amp));
+          glowLine(ink, [x, y - hgt, x, y + hgt * 0.28], C.rust, sl * (0.5 + 0.5 * hit.amp));
         }
       }
 

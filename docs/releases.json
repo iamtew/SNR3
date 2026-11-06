@@ -1,4 +1,12 @@
 {
-  "tag": "",
-  "files": []
+  "tag": "0.0.1",
+  "files": [
+    "SNR3-0.0.1-linux-x64-standalone.zip",
+    "SNR3-0.0.1-linux-x64-vst3.zip",
+    "SNR3-0.0.1-mac-universal-standalone.zip",
+    "SNR3-0.0.1-mac-universal-vst3.zip",
+    "SNR3-0.0.1-win-x64-installer.msi",
+    "SNR3-0.0.1-win-x64-standalone.zip",
+    "SNR3-0.0.1-win-x64-vst3.zip"
+  ]
 }

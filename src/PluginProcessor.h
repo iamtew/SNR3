@@ -71,7 +71,7 @@ public:
     juce::String samplePath() const;
     void reloadSample();
 
-    float uiScale = 0.85f;
+    float uiScale = 1.0f;
     double wavSr = 44100.0;
     bool wavNorm = true;
 

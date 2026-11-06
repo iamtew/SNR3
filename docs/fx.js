@@ -1,5 +1,5 @@
 // PixiJS backdrop: catalog kickScene, full-viewport, no CDN.
-const C = { k1xOrange: 0xd94214, k1xSteel: 0xb8c4d6 };
+const C = { rust: 0x8a3a22, brass: 0xc4a35a, cream: 0xe8dcc8 };
 const BPM = 124;
 const BEAT = 60 / BPM;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -101,11 +101,11 @@ function kickScene(PIXI, glow) {
   const wave = new PIXI.Graphics();
   rings.blendMode = 'add';
   wave.blendMode = 'add';
-  const core = glowSprite(PIXI, glow, C.k1xOrange);
+  const core = glowSprite(PIXI, glow, C.brass);
   root.addChild(rings, wave, core);
 
   const sparks = Array.from({ length: 90 }, () => {
-    const s = glowSprite(PIXI, glow, Math.random() < 0.7 ? C.k1xOrange : C.k1xSteel);
+    const s = glowSprite(PIXI, glow, Math.random() < 0.3 ? C.rust : C.cream);
     s.alpha = 0;
     root.addChild(s);
     return s;
@@ -139,10 +139,10 @@ function kickScene(PIXI, glow) {
         if (life <= 0) continue;
         const r = maxR * (1 - Math.exp(-a * 2.2));
         for (const [width, alpha] of GLOW_PASSES) {
-          rings.circle(cx, cy, r).stroke({ width: width * (0.5 + life), color: C.k1xOrange, alpha: alpha * life * life });
+          rings.circle(cx, cy, r).stroke({ width: width * (0.5 + life), color: C.brass, alpha: alpha * life * life });
         }
         if (a > 0.12) {
-          rings.circle(cx, cy, r * 0.82).stroke({ width: 1.5, color: C.k1xSteel, alpha: 0.5 * life * life });
+          rings.circle(cx, cy, r * 0.82).stroke({ width: 1.5, color: C.rust, alpha: 0.5 * life * life });
         }
       }
 
@@ -163,7 +163,7 @@ function kickScene(PIXI, glow) {
         const phase = 70 * u + 55 * (1 - Math.exp(-u * 6)) - t * 6;
         pts.push(x, wy + amp * Math.exp(-u * 2.8) * Math.sin(phase));
       }
-      glowLine(wave, pts, C.k1xOrange);
+      glowLine(wave, pts, C.brass);
     },
   };
 }

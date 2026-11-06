@@ -6,6 +6,7 @@
   --brass: #c4a35a;
   --rust: #8a3a22;
   --white: #ffffff;
+  --radius: 8px;
 }
 
 * { box-sizing: border-box; }
@@ -57,7 +58,7 @@ nav a {
   font-weight: 700;
   text-decoration: none;
   padding: 0.1rem 0.45rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 nav a.on,
@@ -136,7 +137,7 @@ h1 { font-size: 2rem; }
   font-weight: 700;
   text-decoration: none;
   padding: 0.35rem 0.9rem;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .download:hover {

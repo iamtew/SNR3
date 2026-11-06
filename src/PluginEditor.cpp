@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "dsp/WavExport.h"
+#include "presets/FactoryPresets.h"
 #include "ui/VersionCompare.h"
 
 #include <cmath>
@@ -34,7 +35,6 @@ constexpr int kMenuSaveAs = 3;
 constexpr int kMenuExport = 4;
 constexpr int kMenuImport = 5;
 constexpr int kMenuFactory = 1000;
-constexpr int kMenuStack = 3000;
 constexpr int kMenuUser = 10000;
 
 juce::Colour layerColour (int layer)
@@ -1441,7 +1441,11 @@ void SNR3AudioProcessorEditor::contentMouseUp (const juce::MouseEvent& e)
 
 void SNR3AudioProcessorEditor::refreshPatchName()
 {
-    patchBar.setText (proc.patchName());
+    const auto name = proc.patchName();
+    if (const auto* preset = snr3::findFactoryPreset (name.toRawUTF8()))
+        patchBar.setText (juce::String (preset->category) + " / " + name);
+    else
+        patchBar.setText (name);
 }
 
 void SNR3AudioProcessorEditor::cyclePatch (int delta)
@@ -1469,10 +1473,32 @@ void SNR3AudioProcessorEditor::openPatchMenu()
     m.addItem (kMenuSaveAs, "Save As...");
     m.addItem (kMenuExport, "Export...");
     m.addItem (kMenuImport, "Import...");
+    m.addSeparator();
+
+    {
+        juce::String cat;
+        juce::PopupMenu sub;
+        for (int i = 0; i < snr3::factoryPresetCount; ++i)
+        {
+            const auto& preset = snr3::factoryPresets[i];
+            const juce::String next (preset.category);
+            if (next != cat)
+            {
+                if (sub.getNumItems() > 0)
+                    m.addSubMenu (cat, sub);
+                sub = juce::PopupMenu();
+                cat = next;
+            }
+            sub.addItem (kMenuFactory + i, preset.name, true, cur == preset.name);
+        }
+        if (sub.getNumItems() > 0)
+            m.addSubMenu (cat, sub);
+    }
 
     juce::StringArray userOnly;
     for (const auto& name : proc.patchNames())
-        userOnly.add (name);
+        if (snr3::findFactoryPreset (name.toRawUTF8()) == nullptr)
+            userOnly.add (name);
     if (userOnly.size() > 0)
     {
         m.addSeparator();
@@ -1504,6 +1530,12 @@ void SNR3AudioProcessorEditor::openPatchMenu()
                              const int i = result - kMenuUser;
                              if (juce::isPositiveAndBelow (i, userOnly.size()))
                                  safe->proc.loadPatchByName (userOnly[i]);
+                         }
+                         else if (result >= kMenuFactory)
+                         {
+                             const int i = result - kMenuFactory;
+                             if (juce::isPositiveAndBelow (i, snr3::factoryPresetCount))
+                                 safe->proc.loadPatchByName (snr3::factoryPresets[i].name);
                          }
                          safe->refreshPatchName();
                      });

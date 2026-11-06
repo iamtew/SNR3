@@ -114,6 +114,14 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                                                          "Hold",
                                                          StringArray { "One-shot", "Hold" },
                                                          0));
+    layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::style, 1 },
+                                                         "Style",
+                                                         StringArray { "Classic", "Fat", "Snap", "Tight", "Hard" },
+                                                         0));
+    layout.add (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::bodyShape, 1 },
+                                                         "Shape",
+                                                         StringArray { "Sine", "Tri" },
+                                                         0));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::velAmt, 1 }, "Vel", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (

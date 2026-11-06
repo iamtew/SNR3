@@ -152,6 +152,8 @@ struct ShellVoice
         float delayMs = 0.f;
         float lengthSec = 0.f;
         bool holdNote = false;
+        int bodyShape = 0;   // 0 sine, 1 tri
+        float harmonic = 0.f; // extra 2nd from Style
     };
 
     void prepare (double sampleRate)
@@ -195,8 +197,20 @@ struct ShellVoice
         if (phase2 >= 1.0)
             phase2 -= std::floor (phase2);
         const float twopi = 6.283185307179586f;
-        const float body = std::sin ((float) (phase * (double) twopi))
-                         + 0.45f * std::sin ((float) (phase2 * (double) twopi));
+        const float ph = (float) (phase * (double) twopi);
+        const float ph2 = (float) (phase2 * (double) twopi);
+        float p1 = std::sin (ph);
+        float p2 = std::sin (ph2);
+        if (params.bodyShape == 1)
+        {
+            if (p1 > 1.f) p1 = 1.f;
+            if (p1 < -1.f) p1 = -1.f;
+            if (p2 > 1.f) p2 = 1.f;
+            if (p2 < -1.f) p2 = -1.f;
+            p1 = 0.636619772f * std::asin (p1);
+            p2 = 0.636619772f * std::asin (p2);
+        }
+        const float body = p1 + 0.45f * p2 + params.harmonic * std::sin (ph + ph);
         const float env = std::exp ((float) (-t / (double) params.decay));
         if (bodyDuck < 0.f)
             bodyDuck = 0.f;
@@ -281,6 +295,7 @@ struct StickVoice
         float toneHz = 2500.f;
         float delayMs = 0.f;
         float lengthSec = 0.f;
+        float gain = 1.f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -311,7 +326,7 @@ struct StickVoice
         const float hpC = layerOnePole (params.toneHz, clock.sr);
         hpZ += hpC * (n - hpZ);
         const float env = std::exp ((float) (-t / (double) tau));
-        const float y = (n - hpZ) * env * clock.attack() * clock.fade();
+        const float y = (n - hpZ) * env * params.gain * clock.attack() * clock.fade();
         clock.advance();
         return y;
     }
@@ -498,7 +513,35 @@ struct SnareParams
     SampleVoice::Params sample;
     float duckDepth = 0.f;
     float duckTimeMs = 1.5f;
+    int style = 0;     // Classic Fat Snap Tight Hard
+    int bodyShape = 0; // 0 sine, 1 tri
 };
+
+// Knobs stay put. Style only scales stick / decays and a Style-owned 2nd.
+inline void applyStyle (SnareParams& p)
+{
+    float stickTauMul = 1.f, stickMul = 1.f, dMul = 1.f, harmonic = 0.f;
+    switch (p.style)
+    {
+        case 1: stickTauMul = 2.f;    stickMul = 0.15f; dMul = 2.2f;  break;
+        case 2: stickTauMul = 0.5f;   stickMul = 1.4f;  dMul = 0.55f; harmonic = 0.08f; break;
+        case 3: stickTauMul = 0.75f;  stickMul = 1.1f;  dMul = 0.45f; break;
+        case 4: stickTauMul = 0.75f;  stickMul = 1.2f;  dMul = 0.8f;  harmonic = 0.25f; break;
+        default: break;
+    }
+    p.stick.decayMs *= stickTauMul;
+    if (p.stick.decayMs < 0.5f)
+        p.stick.decayMs = 0.5f;
+    p.stick.gain = stickMul;
+    p.shell.decay *= dMul;
+    p.wires.decay *= dMul;
+    if (p.shell.decay < 0.02f)
+        p.shell.decay = 0.02f;
+    if (p.wires.decay < 0.02f)
+        p.wires.decay = 0.02f;
+    p.shell.harmonic = harmonic;
+    p.shell.bodyShape = p.bodyShape;
+}
 
 struct SnareStack
 {
@@ -521,8 +564,10 @@ struct SnareStack
         }
     }
 
-    void trigger (const SnareParams& p)
+    void trigger (const SnareParams& in)
     {
+        SnareParams p = in;
+        applyStyle (p);
         duck.arm (p.stick.delayMs, p.duckTimeMs, p.duckDepth);
         for (int L = 0; L < kMixLayers; ++L)
         {

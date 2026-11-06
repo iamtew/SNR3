@@ -217,6 +217,8 @@ void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
     bindSample (p.sample);
     p.duckDepth = raw (ParamID::duckDepth);
     p.duckTimeMs = raw (ParamID::duckTime);
+    p.style = juce::roundToInt (raw (ParamID::style));
+    p.bodyShape = juce::roundToInt (raw (ParamID::bodyShape));
 }
 
 snr3::SnareParams SNR3AudioProcessor::currentParams() const

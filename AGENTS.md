@@ -29,4 +29,4 @@ SNR3.jucer
 - Allocate on the audio thread
 - Copy commercial plugin code
 - Copy `KickVoice` / kick-named files and rename
-- Port K1X 808 / 707 / Tight / Hard until asked
+- Use K1X 808 / 707 machine names on the Style combo (SNR3 Style is Classic / Fat / Snap / Tight / Hard)

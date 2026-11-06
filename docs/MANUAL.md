@@ -15,6 +15,8 @@ MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune is for Standalo
 - **Stick** — beater / click (Decay, Tone)
 - **Sample** — user WAV/AIFF/FLAC, linear resample, no pitch. Missing file = silence.
 
+Style: Classic / Fat / Snap / Tight / Hard. Scales stick and decays; knobs stay put. Shape: Sine / Tri on Shell. Dist Shape on the FX page is a different control.
+
 Length: Free / 1/4 / 1/8 / 1/16 + Hold.
 
 ## Effects

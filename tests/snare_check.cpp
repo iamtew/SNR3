@@ -1,6 +1,7 @@
 #include "dsp/SnareRender.h"
 #include "presets/FactoryPresets.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -86,6 +87,46 @@ int main()
     {
         std::printf ("fail: duck did not dip Shell (%g vs %g)\n", d, u);
         return 1;
+    }
+
+    {
+        snr3::SnareParams st;
+        std::vector<float> classic ((size_t) n), fat ((size_t) n), tight ((size_t) n);
+        snr3::renderSnare (classic.data(), n, sr, st);
+        st.style = 1;
+        snr3::renderSnare (fat.data(), n, sr, st);
+        st.style = 3;
+        snr3::renderSnare (tight.data(), n, sr, st);
+        const int late = (int) (sr * 0.7);
+        const float eC = energy (classic.data() + late, n - late);
+        const float eF = energy (fat.data() + late, n - late);
+        const float eT = energy (tight.data() + late, n - late);
+        if (eF <= eC)
+        {
+            std::printf ("fail: Fat tail %g vs Classic %g\n", eF, eC);
+            return 1;
+        }
+        if (eT >= eC)
+        {
+            std::printf ("fail: Tight tail %g vs Classic %g\n", eT, eC);
+            return 1;
+        }
+    }
+
+    {
+        snr3::SnareParams sh;
+        std::vector<float> sine ((size_t) 2048), tri ((size_t) 2048);
+        snr3::renderSnare (sine.data(), 2048, sr, sh);
+        sh.bodyShape = 1;
+        snr3::renderSnare (tri.data(), 2048, sr, sh);
+        float d = 0.f;
+        for (int i = 0; i < 2048; ++i)
+            d = std::max (d, std::abs (sine[(size_t) i] - tri[(size_t) i]));
+        if (d <= 0.01f)
+        {
+            std::printf ("fail: Sine vs Tri d=%g\n", d);
+            return 1;
+        }
     }
 
     if (! snr3::factoryBankOk() || snr3::factoryPresetCount < 60

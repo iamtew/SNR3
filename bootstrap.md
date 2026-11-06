@@ -19,7 +19,7 @@ This file is the spec. Future agents bootstrap the project from it. Do not inven
 - Hybrid voice: thin synthetic core + first-class Sample (user WAV/AIFF/FLAC, no factory library; missing file = silence)
 - MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune knob is for Standalone Play, waveform, and WAV export.
 
-Default sound: 909-ish snare (short stick, mid wires, short shell). Named factory bank in the patch menu. Do not port K1X 808 / 707 / Tight / Hard as a DSP Style knob.
+Default sound: 909-ish snare (short stick, mid wires, short shell). Named factory bank in the patch menu. Style combo is Classic / Fat / Snap / Tight / Hard (not K1X 808 / 707 machine names).
 
 ## Layers
 
@@ -47,7 +47,7 @@ Port patterns. Do not copy `KickVoice` / kick-named files and rename.
 ## Do not port
 
 - CMake (Projucer only)
-- Kick Style bank and kick factory presets
+- Kick Style bank names (808 / 707) and kick factory presets
 - Kick Drop / P.Hold as the default snare model
 - Commercial plugin code
 - Allocations, locks, or system calls in `processBlock`

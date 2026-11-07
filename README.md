@@ -4,7 +4,7 @@
 
 **SNR3** is a snare one-shot (909-ish default: short stick, mid wires, short shell). Hybrid voice: thin synthetic core plus a user Sample. Mix, per-layer EQ, parallel post FX, Style / Shape, length snap, WAV export with Norm.
 
-VST3 and standalone (Play / Loop / WAV export). Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/MANUAL.md](docs/MANUAL.md).
+VST3 and standalone (Play / Loop / WAV export). Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/docs.html](docs/docs.html).
 
 ## Release
 

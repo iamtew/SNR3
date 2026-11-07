@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SNR3 | snare drum</title>
-  <meta name="description" content="snare drum">
+  <title>SNR3</title>
+  <meta name="description" content="A free snare one-shot with a 909-ish default. Shell, wires, stick, plus your own sample. Mix, FX, and WAV export. VST3 and standalone.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="SNR3 | snare drum">
-  <meta property="og:description" content="snare drum">
+  <meta property="og:title" content="SNR3">
+  <meta property="og:description" content="A free snare one-shot with a 909-ish default. Shell, wires, stick, plus your own sample. Mix, FX, and WAV export. VST3 and standalone.">
   <meta property="og:url" content="https://iamtew.github.io/SNR3/">
   <meta property="og:image" content="https://iamtew.github.io/SNR3/ogimage-SNR3.png">
   <meta property="og:image:width" content="1200">
@@ -21,78 +21,140 @@
   <canvas id="fx" aria-hidden="true"></canvas>
   <header>
     <a class="brand" href="#top"><img src="logo.png" alt="" width="36" height="36">SNR3</a>
-    <nav>
+    <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#menu"></use></svg>
+    </button>
+    <nav id="site-nav">
       <a href="#sound">Sound</a>
+      <a href="#effects">Effects</a>
       <a href="#standalone">Standalone</a>
-      <a href="notes.html?doc=MANUAL.md">Manual</a>
-      <a href="#notes">Notes</a>
+      <a href="docs.html">Manual</a>
       <a href="https://audio.stupid.systems/">Stupid Audio</a>
     </nav>
   </header>
 
-  <main id="top">
-    <div class="lead">
-      <img class="hero" src="logo.png" alt="SNR3" width="160" height="160">
+  <main id="top" class="landing">
+    <div class="hero-panel">
+      <div class="lead">
+        <img class="hero" src="logo.png" alt="SNR3" width="160" height="160">
+        <div>
+          <h1>SNR3</h1>
+          <p class="tag">Snare one-shot. 909-ish default.</p>
+        </div>
+      </div>
+      <p>You wanted a snare you can actually play with. SNR3 is a one-shot with a thin synthetic core — Shell, Wires, Stick — plus a slot for your own sample. Mix the layers, EQ each one, send them through parallel FX, snap the length to the grid, and export a WAV with Norm when it finally sounds like a drum instead of a complaint.</p>
+      <p>It is part of <a href="https://audio.stupid.systems/">Stupid Audio</a> — five free instruments in one pack. The other four live over there.</p>
+      <p class="actions">
+        <button type="button" class="download" data-dl-open>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#download"></use></svg>
+          Download
+        </button>
+        <a class="repo" href="https://github.com/iamtew/SNR3">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#github"></use></svg>
+          GitHub
+        </a>
+      </p>
+      <p class="meta">VST3 and standalone. Windows, Linux, and Mac.</p>
+    </div>
+
+    <section id="sound" class="feature">
       <div>
-        <h1>SNR3</h1>
-        <p class="tag">Snare one-shot. 909-ish default.</p>
+        <h2>Sound</h2>
+        <p>Four layers, one snare. The waveform is the mix you hear on Play, before post FX. Click a rail to overlay that stem, because guessing which layer is late is a sport, not a workflow.</p>
+        <ul>
+          <li><strong>Shell</strong> — the pitched body. Tune, Decay, Tone, Harm.</li>
+          <li><strong>Wires</strong> — bandpassed noise with a short comb rattle if you want buzz.</li>
+          <li><strong>Stick</strong> — the beater click. Hard is extra brightness; Click is a tiny separate spike.</li>
+          <li><strong>Sample</strong> — your WAV, AIFF, or FLAC. Linear resample, no pitch. A missing file is silence, which is the polite option.</li>
+        </ul>
+        <p>Style is Classic, Fat, Snap, Tight, or Hard. It scales the stick and the decays and leaves your knobs alone. Shape is Sine or Tri on the Shell. Mix is mute, solo, gain, phase, Delay, and Send. Duck dips the Shell when the Stick hits, so the click can punch through.</p>
       </div>
-    </div>
-    <p>Thin synthetic core (Shell, Wires, Stick) plus a user Sample. Mix, per-layer EQ, parallel post FX, length snap, WAV export with Norm.</p>
-    <p>Part of <a href="https://audio.stupid.systems/">Stupid Audio</a> — five free instruments in one pack. The other four live over there.</p>
-    <div class="actions">
-      <div class="downloads">
-        <div class="dl-row" data-kind="installer" hidden>
-          <span class="dl-label">Installer:</span>
-          <a class="download os" data-os="win" hidden><span class="ico ico-win" aria-hidden="true"></span>Windows</a>
-        </div>
-        <div class="dl-row" data-kind="vst3" hidden>
-          <span class="dl-label">VST3:</span>
-          <a class="download os" data-os="win" hidden><span class="ico ico-win" aria-hidden="true"></span>Windows</a>
-          <a class="download os" data-os="linux" hidden><span class="ico ico-linux" aria-hidden="true"></span>Linux</a>
-          <a class="download os" data-os="mac" hidden><span class="ico ico-mac" aria-hidden="true"></span>MacOS</a>
-        </div>
-        <div class="dl-row" data-kind="standalone" hidden>
-          <span class="dl-label">Standalone:</span>
-          <a class="download os" data-os="win" hidden><span class="ico ico-win" aria-hidden="true"></span>Windows</a>
-          <a class="download os" data-os="linux" hidden><span class="ico ico-linux" aria-hidden="true"></span>Linux</a>
-          <a class="download os" data-os="mac" hidden><span class="ico ico-mac" aria-hidden="true"></span>MacOS</a>
-        </div>
-      </div>
-      <a class="download gh" href="https://github.com/iamtew/SNR3"><span class="ico ico-gh" aria-hidden="true"></span>GitHub</a>
-    </div>
-    <p class="meta">VST3 and standalone.</p>
-
-    <section id="sound" class="card">
-      <h2>Sound</h2>
-      <p>Shell is the pitched body. Wires are bandpassed noise. Stick is a short click. Sample is your WAV/AIFF/FLAC, linear resample, no pitch; a missing file is silence. Mix is mute / solo / gain / phase / Delay / Send. Duck dips Shell when Stick hits. Effects is Dist → Delay → Reverb send plus 5-band post EQ. The waveform is the layered mix before post FX.</p>
-      <figure>
+      <button type="button" class="shot-open" data-shot="main.png" data-shot-alt="SNR3 main page: layers, waveform, and knobs">
         <img class="shot" src="main.png" alt="SNR3 main page: layers, waveform, and knobs">
-        <figcaption>Main — Shell, Wires, Stick, Sample, mix, and waveform.</figcaption>
-      </figure>
-      <figure>
+      </button>
+    </section>
+
+    <section id="effects" class="feature">
+      <div>
+        <h2>Effects</h2>
+        <p>A parallel send after the layered mix: Dist, then Delay, then Reverb, plus a five-band post EQ. Dry stays the unprocessed mix. The FX page is where you make it mean, or make it sit, or accidentally invent a hallway.</p>
+      </div>
+      <button type="button" class="shot-open" data-shot="effects.png" data-shot-alt="SNR3 effects page: Dist, Delay, Reverb, and post EQ">
         <img class="shot" src="effects.png" alt="SNR3 effects page: Dist, Delay, Reverb, and post EQ">
-        <figcaption>Effects — Dist → Delay → Reverb send plus 5-band post EQ.</figcaption>
-      </figure>
+      </button>
     </section>
 
-    <section id="standalone" class="card">
-      <h2>Standalone</h2>
-      <p>Play is a one-shot. Loop (BPM 40–240, default 140) repeats until you hit Play again. Hosts hide Play / Loop / BPM and use MIDI. MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). The Tune knob is for Play, the waveform, and WAV export. Export WAV writes 24-bit stereo including FX tail, 44.1 or 48 kHz. Norm (default on) peaks to −0.1 dBTP. Click <strong>SNR3</strong> for About.</p>
-      <figure>
-        <img class="shot" src="about.png" alt="SNR3 about dialog">
-        <figcaption>About — version and update check.</figcaption>
-      </figure>
-    </section>
-
-    <section id="notes">
-      <h2>Notes</h2>
-      <a href="notes.html?doc=MANUAL.md">Manual</a>
-      <a href="notes.html?doc=SPEC.md">Spec</a>
-      <a href="notes.html?doc=ARCHITECTURE.md">Architecture</a>
-      <a href="notes.html?doc=DSP_NOTES.md">DSP notes</a>
+    <section id="standalone" class="feature">
+      <div>
+        <h2>Standalone</h2>
+        <p>Play is a one-shot. Loop (BPM 40–240, default 140) repeats until you hit Play again. Hosts hide Play, Loop, and BPM and use MIDI instead. MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). The Tune knob is for Play, the waveform, and WAV export, so the knob and the MIDI note are not fighting each other.</p>
+        <p>Export writes 24-bit stereo including the FX tail, 44.1 or 48 kHz. Norm (on by default) peaks to −0.1 dBTP. Click <strong>SNR3</strong> in the title bar for About and a GitHub update check.</p>
+      </div>
+      <button type="button" class="shot-open" data-shot="about.png" data-shot-alt="SNR3 about dialog: version and update check">
+        <img class="shot" src="about.png" alt="SNR3 about dialog: version and update check">
+      </button>
     </section>
   </main>
+
+  <dialog id="dl" class="dl-dialog" aria-labelledby="dl-title">
+    <button type="button" class="dl-close" data-dl-close aria-label="Close">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg>
+    </button>
+    <h2 id="dl-title">Download SNR3</h2>
+    <div class="dl-kind">
+      <p>The Windows installer is the easy path. It can put the VST3, the standalone app, or both on the machine, and it adds a Start menu shortcut for the app.</p>
+      <div class="dl-row" data-kind="installer" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows installer
+        </a>
+      </div>
+    </div>
+    <div class="dl-kind">
+      <p>The VST3 zip is just the plugin. Drop it where your DAW looks for VST3s. Mac builds are ad-hoc signed, so Gatekeeper will sulk until you right-click Open the first time.</p>
+      <div class="dl-row" data-kind="vst3" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows
+        </a>
+        <a class="download os" data-os="linux" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#linux"></use></svg>
+          Linux
+        </a>
+        <a class="download os" data-os="mac" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#apple"></use></svg>
+          macOS
+        </a>
+      </div>
+    </div>
+    <div class="dl-kind">
+      <p>The standalone zip is the app, no DAW required. Same Gatekeeper story on Mac. Linux wants the usual system ALSA, FreeType, fontconfig, and X11 libraries.</p>
+      <div class="dl-row" data-kind="standalone" hidden>
+        <a class="download os" data-os="win" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#windows"></use></svg>
+          Windows
+        </a>
+        <a class="download os" data-os="linux" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#linux"></use></svg>
+          Linux
+        </a>
+        <a class="download os" data-os="mac" hidden>
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#apple"></use></svg>
+          macOS
+        </a>
+      </div>
+    </div>
+    <img class="dl-logo" src="logo.png" alt="" width="192" height="192">
+  </dialog>
+
+  <dialog id="shot" class="shot-dialog">
+    <button type="button" class="dl-close" data-shot-close aria-label="Close">
+      <svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg>
+    </button>
+    <img id="shot-full" alt="">
+  </dialog>
+
+  <script src="icons.js"></script>
   <script type="module" src="fx.js"></script>
   <script src="site.js"></script>
 </body>

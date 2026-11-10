@@ -6,6 +6,8 @@
 
 VST3 and standalone (Play / Loop / WAV export). Stupid Audio. [MIT](LICENSE). Site: [docs/](docs/index.html). Manual: [docs/docs.html](docs/docs.html).
 
+Add `?fx` to any page to preview the backdrop full screen with the page chrome hidden; `?fx=false` keeps the normal page.
+
 ## Release
 
 Windows, Linux, and macOS files come from GitHub Actions (`.github/workflows/dist.yml`). Run it from the Actions tab for artifacts only, or push a numeric tag such as `0.0.1` (no `v` prefix) to build and publish a GitHub Release with the files attached. After a tag release, the job writes `docs/releases.json` (latest asset filenames, no source tarballs) so the site can link Installer / VST3 / Standalone files directly. `<version>` is the `version` in `SNR3.jucer`.

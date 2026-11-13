@@ -26,6 +26,6 @@ The MSI installs the VST3, the standalone app, or both. Defaults are `Common Fil
 
 The Mac zips are ad-hoc signed, not notarized. Gatekeeper blocks them until you right-click Open, or run `xattr -dr com.apple.quarantine` on the `.vst3` and the `.app`. The Linux build uses the system ALSA, FreeType, fontconfig, and X11 libraries.
 
-`just build-dist` on Windows still writes the three Windows files only. Building the MSI needs the .NET 8 SDK.
+`just build-dist` on Windows still writes the three Windows files only. Building the MSI needs the .NET 8 SDK. Do not run the `dist` MSI from this OneDrive tree (msiexec 1620). `just build-msi` copies it to `%LOCALAPPDATA%\SNR3\` and selects that file in Explorer. After it is installed, later `dist` double-clicks use the Windows cache like TEW03/K1X/V4JB.
 
 `just docs-screenshots` overwrites `docs/main.png`, `docs/effects.png`, and `docs/about.png`. Needs a debug standalone (`just build-debug`) and an interactive desktop.

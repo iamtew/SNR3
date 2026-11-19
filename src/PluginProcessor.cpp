@@ -346,7 +346,7 @@ void SNR3AudioProcessor::applyLayerEq (float* const* chan, int n, double sampleR
 }
 
 void SNR3AudioProcessor::mixChansWithPost (float* const* chan, int n, double sampleRate,
-                                           juce::AudioBuffer<float>& dest, float bpm) const
+                                           juce::AudioBuffer<float>& dest, float bpm)
 {
     const int chs = dest.getNumChannels();
     if (n <= 0 || chs <= 0)

@@ -28,7 +28,7 @@ Mix mute / solo / gain / phase, Delay / Pre, Send — same contract as K1X Mix.
 - **Stick** — beater / click
 - **Sample** — user file, linear resample, no pitch shift (same as K1X Sample)
 
-Duck / Time: dip Shell when Stick hits. Extra stem buses: Snare + Slot 1–3 (pre-Width, pre-FX). Main Output is always the full mix.
+Duck / Time: dip Shell when Stick hits. Extra stem bus: Snare (pre-Width, pre-FX). Main Output is always the full mix.
 
 ## Port from K1X (behavior, snare names)
 

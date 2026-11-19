@@ -7,7 +7,6 @@ MIDI / Play → SnareStack (Shell, Wires, Stick, Sample)
   → per-layer EQ → Drive → Mix amps → Width → Pan extra
   → PostFx (Dist → Delay → Rev) → post EQ → Output
 Snare bus = four layers pre-Width, pre-FX
-Slot 1–3 buses exist and stay silent until extra voices exist
 ```
 
 Offline `renderShot` / `renderWithPost` share the same stack as the audio thread. Waveform uses `renderShot` (pre post FX).

@@ -7,4 +7,4 @@ Mute, solo, gain, phase, Delay / Pre, and Send live here. Duck is how the stick 
 
 Stereo **Output** is always the full mix, so a host that ignores extra pins still hears the whole drum.
 
-Optional extra stereo buses **Snare**, **Slot 1**, **Slot 2**, **Slot 3** are that mix layer after mute/solo/gain, before Width and post FX. Leave them off if you do not need stems.
+Optional extra stereo bus **Snare** is the four layers after mute/solo/gain, before Width and post FX. Leave it off if you do not need a stem.

@@ -1,9 +1,24 @@
 // PixiJS backdrop: snareScene, full-viewport, no CDN.
 const C = { rust: 0x8a3a22, brass: 0xc4a35a, cream: 0xe8dcc8 };
-const BPM = 128;
-const BEAT = 60 / BPM;
-const FLAM = 0.04;
-const ST = [0.18, 0.39, 0.61, 0.82];
+const BPM = 108;
+const STEP = 60 / BPM / 4;
+const FLAM = 0.035;
+const BAR = 16 * STEP;
+// a of 1, flam+accent on 2, a of 2, a of 3, accent on 4.
+const GROOVE = [
+  { step: 3, vel: 0.22 },
+  { step: 4, vel: 1, flam: FLAM },
+  { step: 7, vel: 0.3 },
+  { step: 11, vel: 0.26 },
+  { step: 12, vel: 1 },
+];
+const EVENTS = [];
+for (const g of GROOVE) {
+  if (g.flam) EVENTS.push({ at: g.step * STEP - g.flam, vel: 0.42, grace: true });
+  EVENTS.push({ at: g.step * STEP, vel: g.vel, grace: false });
+}
+// Open just before the first ghost so the pocket starts with the page.
+const START = 3 * STEP - 0.08;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
@@ -49,7 +64,7 @@ function bootTicker(app, scene) {
     app.ticker.stop();
     const still = () => {
       const { width: w, height: h } = app.screen;
-      scene.update(8, w, h, 0);
+      scene.update(0, w, h, 0);
       app.render();
     };
     addEventListener('resize', () => requestAnimationFrame(still));
@@ -57,7 +72,7 @@ function bootTicker(app, scene) {
     return;
   }
 
-  let t = 0;
+  let t = START;
   app.ticker.add((ticker) => {
     const dt = Math.min(ticker.deltaMS / 1000, 0.05);
     t += dt;
@@ -68,7 +83,7 @@ function bootTicker(app, scene) {
       scene.root.x += ((0.5 - pointer.x) * 40 - scene.root.x) * ease;
       scene.root.y += ((0.5 - pointer.y) * 24 - scene.root.y) * ease;
     }
-    scene.update(t, w, h, dt);
+    scene.update(t, w, h, dt || 0.001);
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -99,122 +114,231 @@ function glowSprite(PIXI, tex, tint) {
 }
 
 const GLOW_PASSES = [[22, 0.05], [10, 0.14], [2.5, 1]];
-function glowLine(g, pts, color, scale = 1, passes = GLOW_PASSES) {
-  for (const [width, alpha] of passes) {
+function glowLine(g, pts, color, scale = 1, fade = 1) {
+  for (const [width, alpha] of GLOW_PASSES) {
     g.moveTo(pts[0], pts[1]);
     for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
-    g.stroke({ width: width * scale, color, alpha, cap: 'round', join: 'round' });
+    g.stroke({ width: width * scale, color, alpha: alpha * fade, cap: 'round', join: 'round' });
   }
+}
+
+function ellipsePts(cx, cy, rx, ry, n = 40) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    pts.push(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+  }
+  return pts;
+}
+
+function drumAt(w, h) {
+  // Wide pages: reach past the centered column so the rim sits in the margin.
+  const column = Math.min(w - 48, 1152);
+  const margin = (w - column) / 2;
+  const rx = margin > 160 ? Math.min(w * 0.46, w / 2 - 48) : Math.min(w, h) * 0.34;
+  const ry = Math.min(rx * 0.42, h * 0.3);
+  const cy = Math.max(ry * 0.55 + 72, Math.min(h * 0.4, h - ry * 0.4));
+  return { cx: w * 0.5, cy, rx, ry };
+}
+
+function scoreAt(d, w) {
+  const column = Math.min(w - 48, 1152);
+  const margin = (w - column) / 2;
+  let left;
+  let width;
+  let y;
+  if (!fxOnly && margin > 220) {
+    width = Math.min(300, margin * 0.78);
+    left = Math.max(16, (margin - width) * 0.45);
+    y = d.cy + d.ry * 0.85;
+  } else {
+    width = Math.min(Math.max(180, w * 0.5), 440, Math.max(160, w - 16));
+    left = d.cx - width / 2;
+    y = d.cy + d.ry + Math.max(26, d.ry * 0.28);
+  }
+  const groupGap = Math.min(14, width * 0.03);
+  const cell = (width - groupGap * 3) / 16;
+  return {
+    y, cell,
+    x(step) {
+      return left + Math.floor(step / 4) * groupGap + (step + 0.5) * cell;
+    },
+  };
 }
 
 function snareScene(PIXI, glow) {
   const root = new PIXI.Container();
   const ink = new PIXI.Graphics();
-  const wave = new PIXI.Graphics();
   ink.blendMode = 'add';
-  wave.blendMode = 'add';
-  root.addChild(ink, wave);
+  root.addChild(ink);
 
-  const sparks = Array.from({ length: 90 }, () => {
-    const s = glowSprite(PIXI, glow, Math.random() < 0.3 ? C.rust : C.cream);
+  const sparks = Array.from({ length: 16 }, () => {
+    const s = glowSprite(PIXI, glow, C.cream);
     s.alpha = 0;
     root.addChild(s);
     return s;
   });
   let nextSpark = 0;
   const hits = [];
-  const pulse = [0, 0, 0, 0];
-  let lastQ = -1;
-  let lastFlamBar = -1;
-  let env = 0;
+  let prev = START;
+  let hoop = 0;
 
-  function pos(t, w, h, slot, dx) {
-    const x = w * ST[slot] + dx + Math.sin(t * 1.6 + slot * 1.3) * 10;
-    const y = h * 0.42
-      + (slot - 1.5) * h * 0.055
-      + Math.sin(t * Math.PI / BEAT + slot * 0.9) * h * 0.06;
-    return { x, y };
+  function spawn(when, w, h, vel, grace) {
+    hits.push({ born: when, vel, grace });
+    hoop = Math.max(hoop, vel);
+    if (grace || vel < 0.7) return;
+    const d = drumAt(w, h);
+    for (let i = 0; i < 6; i++) {
+      const s = sparks[nextSpark++ % sparks.length];
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(90, 260);
+      s.tint = Math.random() < 0.3 ? C.rust : C.cream;
+      s.x = d.cx + rand(-10, 10);
+      s.y = d.cy + rand(-6, 6);
+      s.vx = Math.cos(a) * sp;
+      s.vy = Math.sin(a) * sp * 0.55;
+      s.alpha = 0.35 + 0.45 * vel;
+      s.scale.set(rand(0.1, 0.22));
+    }
   }
 
-  function spawn(t, w, h, slot, amp, nSparks, dx) {
-    const { x, y } = pos(t, w, h, slot, dx);
-    hits.push({ born: t, slot, dx, amp, tilt: rand(-30, 30), wob: rand(-12, 12) });
-    env = Math.max(env, amp);
-    pulse[slot] = Math.max(pulse[slot], amp);
-    for (let i = 0; i < nSparks; i++) {
-      const s = sparks[nextSpark++ % sparks.length];
-      const side = Math.random() < 0.5 ? -1 : 1;
-      s.x = x; s.y = y;
-      s.vx = side * rand(180, 520);
-      s.vy = rand(-140, 140);
-      s.alpha = 0.4 + 0.6 * amp;
-      s.scale.set(rand(0.12, 0.32) * (0.5 + amp));
+  function fire(t0, t1, w, h) {
+    const b0 = Math.floor(t0 / BAR);
+    const b1 = Math.floor((t1 - 1e-9) / BAR);
+    for (let b = b0; b <= b1; b++) {
+      const base = b * BAR;
+      for (const e of EVENTS) {
+        const when = base + e.at;
+        if (when > t0 && when <= t1) spawn(when, w, h, e.vel, e.grace);
+      }
     }
+  }
+
+  function drawStick(d, hit, t) {
+    const dur = hit.grace ? 0.04 : hit.vel > 0.5 ? 0.07 : 0.034;
+    const age = t - hit.born;
+    const life = 1 - age / dur;
+    if (age < 0 || life <= 0) return;
+    let sx, sy, fx, fy;
+    if (hit.grace) {
+      sx = d.cx - d.rx * 0.12; sy = d.cy - d.ry * 0.08;
+      fx = sx - d.rx * 0.35; fy = sy - d.ry * 2.1;
+    } else if (hit.vel > 0.5) {
+      sx = d.cx + d.rx * 0.04; sy = d.cy;
+      fx = sx + d.rx * 0.42; fy = sy - d.ry * 2.4;
+    } else {
+      sx = d.cx + d.rx * 0.62; sy = d.cy - d.ry * 0.28;
+      fx = sx + d.rx * 0.28; fy = sy - d.ry * 1.5;
+    }
+    glowLine(ink, [fx, fy, sx, sy], C.cream, 0.45 + 0.55 * hit.vel, life);
+  }
+
+  function draw(t, w, h) {
+    const d = drumAt(w, h);
+    ink.clear();
+
+    const wires = 14;
+    for (let i = 0; i < wires; i++) {
+      const f = 0.08 + 0.82 * (i / (wires - 1));
+      const y = d.cy + d.ry * f;
+      const ny = (y - d.cy) / d.ry;
+      const half = Math.sqrt(Math.max(0, 1 - ny * ny)) * d.rx * 0.9;
+      let buzz = 0;
+      for (const hit of hits) {
+        const age = t - hit.born;
+        if (age < 0 || age > 0.48) continue;
+        const tau = 0.05 + 0.14 * hit.vel;
+        buzz += hit.vel * Math.exp(-age / tau) * Math.sin(age * (62 + i * 19) + i * 1.3);
+      }
+      const sign = i % 2 ? 1 : -1;
+      const amp = buzz * d.ry * 0.045 * sign;
+      glowLine(
+        ink,
+        [d.cx - half, y + amp, d.cx + half, y + amp * 0.35],
+        C.brass,
+        0.22 + Math.min(0.5, Math.abs(buzz) * 0.35),
+      );
+    }
+
+    for (const hit of hits) {
+      if (hit.grace) continue;
+      const n = hit.vel > 0.6 ? 3 : 1;
+      const lifeT = hit.vel > 0.5 ? 0.36 : 0.18;
+      for (let i = 0; i < n; i++) {
+        const age = t - hit.born - i * 0.018;
+        if (age <= 0) continue;
+        const u = age / lifeT;
+        if (u >= 1) continue;
+        const grow = 0.18 + 0.92 * Math.sqrt(u);
+        glowLine(ink, ellipsePts(d.cx, d.cy, d.rx * grow, d.ry * grow, 80), C.rust, 0.45, (1 - u) * hit.vel);
+      }
+    }
+
+    glowLine(ink, ellipsePts(d.cx, d.cy, d.rx * 0.92, d.ry * 0.92, 120), C.rust, 0.28 + hoop * 0.2);
+    glowLine(ink, ellipsePts(d.cx, d.cy, d.rx, d.ry, 120), C.brass, 0.5 + hoop * 0.65);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      const x = d.cx + c * d.rx;
+      const y = d.cy + s * d.ry;
+      const reach = Math.min(26, Math.max(10, d.rx * 0.04));
+      glowLine(ink, [x, y, x + c * reach, y + s * reach * (d.ry / d.rx)], C.brass, 0.4);
+    }
+    for (const hit of hits) drawStick(d, hit, t);
+
+    const sc = scoreAt(d, w);
+    const step = ((Math.floor(t / STEP) % 16) + 16) % 16;
+    for (let s = 0; s < 16; s++) {
+      const note = GROOVE.find((g) => g.step === s);
+      const x = sc.x(s);
+      if (!note) {
+        glowLine(ink, [x, sc.y - 7, x, sc.y], C.rust, 0.28, 0.65);
+        continue;
+      }
+      const accent = note.vel > 0.5;
+      glowLine(
+        ink,
+        [x, sc.y - (accent ? 28 : 16), x, sc.y],
+        accent ? C.cream : C.brass,
+        accent ? 0.85 : 0.55,
+      );
+      if (note.flam) {
+        const fx = x - sc.cell * 0.42;
+        glowLine(ink, [fx, sc.y - 14, fx, sc.y], C.brass, 0.5);
+      }
+    }
+    glowLine(ink, [sc.x(step), sc.y + 5, sc.x(step), sc.y + 16], C.cream, 0.7);
+  }
+
+  // Frozen on the accent of 2: stick down, wires mid-buzz, ripples leaving the center.
+  function poster(w, h) {
+    const hit = 4 * STEP;
+    hits.length = 0;
+    hits.push({ born: hit - FLAM, vel: 0.42, grace: true });
+    hits.push({ born: hit, vel: 1, grace: false });
+    hoop = 0.8;
+    draw(hit + 0.04, w, h);
   }
 
   return {
     root,
     update(t, w, h, dt) {
-      const q = Math.floor(t / BEAT);
-      const barLen = 4 * BEAT;
-      const flamBar = Math.floor((t + FLAM) / barLen);
-      if (flamBar !== lastFlamBar && t >= flamBar * barLen - FLAM) {
-        lastFlamBar = flamBar;
-        spawn(t, w, h, 0, 0.35, 6, -10);
+      if (dt === 0) {
+        poster(w, h);
+        return;
       }
-      if (q !== lastQ) {
-        lastQ = q;
-        const slot = ((q % 4) + 4) % 4;
-        const accent = slot === 0 || slot === 2;
-        spawn(t, w, h, slot, accent ? 1 : 0.28, accent ? 18 : 5, slot === 0 ? 8 : 0);
-      }
+      fire(prev, t, w, h);
+      prev = t;
       while (hits.length && t - hits[0].born > 0.5) hits.shift();
-      env *= Math.exp(-dt * 16);
-      for (let i = 0; i < 4; i++) pulse[i] *= Math.exp(-dt * 6);
-
-      ink.clear();
-      for (let slot = 0; slot < 4; slot++) {
-        const { x } = pos(t, w, h, slot, 0);
-        const p = 0.22 + 0.55 * pulse[slot];
-        glowLine(ink, [x, h * 0.08, x, h * 0.8], C.rust, p * 0.35);
-        glowLine(ink, [x + 9, h * 0.16, x + 9, h * 0.72], C.brass, p * 0.18);
-      }
-      for (const hit of hits) {
-        const a = t - hit.born;
-        const life = 1 - a / 0.45;
-        if (life <= 0) continue;
-        const { x, y } = pos(t, w, h, hit.slot, hit.dx);
-        const bob = Math.sin((t - hit.born) * 16 + hit.wob) * 7 * life;
-        const len = (70 + 150 * hit.amp) * (0.35 + 0.65 * life);
-        const nWires = 3 + Math.round(hit.amp * 3);
-        for (let i = 0; i < nWires; i++) {
-          const dy = (i - (nWires - 1) / 2) * 4.5 + hit.wob * 0.35 + bob;
-          const tilt = hit.tilt * ((i / Math.max(nWires - 1, 1)) - 0.5);
-          glowLine(ink, [x - len, y + dy - tilt, x + len, y + dy + tilt], C.brass, (0.35 + 0.65 * hit.amp) * life);
-        }
-        if (a < 0.08) {
-          const sl = 1 - a / 0.08;
-          const hgt = 18 + 48 * hit.amp;
-          glowLine(ink, [x, y - hgt, x, y + hgt * 0.28], C.rust, sl * (0.5 + 0.5 * hit.amp));
-        }
-      }
-
+      hoop *= Math.exp(-dt * 12);
       for (const s of sparks) {
         if (s.alpha <= 0.01) continue;
         s.x += s.vx * dt; s.y += s.vy * dt;
         s.vx *= Math.exp(-dt * 3.2); s.vy *= Math.exp(-dt * 3.2);
-        s.alpha *= Math.exp(-dt * 3.4);
+        s.alpha *= Math.exp(-dt * 4.2);
       }
-
-      wave.clear();
-      const pts = [], wy = h * 0.82, amp = h * 0.07 * (0.2 + 0.8 * env);
-      for (let x = 0; x <= w; x += 3) {
-        const u = x / w;
-        const phase = 140 * u - t * 28;
-        const crack = Math.sin(x * 0.55 + t * 55) * 0.28 + Math.sin(x * 1.4 - t * 90) * 0.12;
-        pts.push(x, wy + amp * Math.exp(-u * 5.5) * (Math.sin(phase) + crack));
-      }
-      glowLine(wave, pts, C.brass);
+      draw(t, w, h);
     },
   };
 }

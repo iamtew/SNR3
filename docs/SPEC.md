@@ -15,7 +15,7 @@ Snare one-shot. Similar to K1X, not a copy. Aimed at snares. Stupid Audio. MIT. 
 - Standalone: Play (one-shot), Loop + BPM (hosts hide these; they use MIDI)
 - WAV export + Norm (peak −0.1 dBTP, default on); drag waveform for the same WAV + patch
 - Hybrid voice: thin synthetic core + first-class Sample (user WAV/AIFF/FLAC, no factory library; missing file = silence)
-- MIDI note-on retriggers and sets Shell pitch (A4 = 440 Hz). Tune knob is for Standalone Play, waveform, and WAV export.
+- MIDI note-on hits the snare (up to four overlapping voices) and sets Shell pitch (A4 = 440 Hz). Tune knob is for Standalone Play, waveform, and WAV export.
 
 Default sound: 909-ish snare (short stick, mid wires, short shell). Named factory bank in the patch menu. Style combo is Classic / Fat / Snap / Tight / Hard (not K1X 808 / 707 machine names).
 

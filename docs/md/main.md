@@ -10,3 +10,5 @@ The waveform is the layered mix you hear on Play, before post FX. Select a rail 
 - **Hold** — one-shot dies after the decay; Hold keeps the tail going until the next note. Length snaps still cut.
 
 **Tune** is for Standalone Play, the waveform, and WAV export. MIDI still sets Shell pitch from the note without moving the knob. See [midi.md](midi.md).
+
+Shell **Chirp** / **Fall** are the strike pitch drop. **Vel** (default on) is how hard MIDI hits the drum.

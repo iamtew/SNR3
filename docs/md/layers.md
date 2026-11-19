@@ -10,20 +10,21 @@ Each layer also has its own EQ in the toolbar: five bands, drag a node, wheel fo
 
 The pitched body.
 
-- **Tune / Decay / Tone / Harm / Length / Attack**
-- **Vel / Width** — global, parked here so you can find them.
+- **Tune / Decay / Tone / Harm / Chirp / Fall / Length / Attack**
+- **Chirp / Fall** — how far and how long the head drops at the strike.
+- **Vel / Width** — global, parked here so you can find them. Vel scales loudness, decay, and brightness (ghosts go short and dark).
 
 ## Wires
 
-Snare-wire noise: bandpassed hiss, plus a short comb rattle if you want it to buzz like it means it.
+Snare-wire noise: bandpassed hiss, gated by the Shell, plus a feedback comb if you want it to buzz like it means it.
 
 - **Decay / HPF / LPF / Length / Attack / Pre**
-- **Buzz** — a short comb rattle.
+- **Buzz** — feedback comb rattle. Default is a little on.
 - **Color** — tilts white toward pink.
 
 ## Stick
 
-The beater / click.
+The beater / click. Also ticks the Shell so the head is excited, not only mixed in parallel.
 
 - **Decay / Tone / Length / Attack / Pre**
 - **Hard** — extra brightness.

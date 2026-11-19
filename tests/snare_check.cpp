@@ -287,6 +287,75 @@ int main()
         }
     }
 
+    {
+        snr3::SnareParams lo, hi;
+        lo.shell.amp = 0.3f;
+        hi.shell.amp = 1.f;
+        std::vector<float> a ((size_t) n), b ((size_t) n);
+        renderLayer (0, lo, a.data(), n, sr);
+        renderLayer (0, hi, b.data(), n, sr);
+        if (energy (b.data(), n) <= energy (a.data(), n) * 2.f)
+        {
+            std::printf ("fail: shell vel amp %g vs %g\n", energy (b.data(), n), energy (a.data(), n));
+            return 1;
+        }
+        snr3::SnareParams dark;
+        dark.shell.modeTilt = 0.1f;
+        dark.shell.toneHz = 800.f;
+        std::vector<float> dk ((size_t) n);
+        renderLayer (0, dark, dk.data(), n, sr);
+        if (energy (dk.data(), n) >= energy (b.data(), n))
+        {
+            std::printf ("fail: ghost darken\n");
+            return 1;
+        }
+    }
+
+    {
+        snr3::SnareParams one;
+        std::vector<float> a ((size_t) 2048), b ((size_t) 2048);
+        snr3::SnareStack s;
+        s.prepare (sr);
+        s.trigger (one);
+        float ly[snr3::kMixLayers];
+        for (int i = 0; i < 2048; ++i)
+        {
+            s.tickInto (ly);
+            a[(size_t) i] = ly[0] + ly[1] + ly[2];
+        }
+        snr3::SnareBank bank;
+        bank.prepare (sr);
+        bank.trigger (one);
+        bank.trigger (one);
+        for (int i = 0; i < 2048; ++i)
+        {
+            bank.tickInto (ly);
+            b[(size_t) i] = ly[0] + ly[1] + ly[2];
+        }
+        if (energy (b.data(), 2048) <= energy (a.data(), 2048) * 1.4f)
+        {
+            std::printf ("fail: overlap energy %g vs %g\n", energy (b.data(), 2048), energy (a.data(), 2048));
+            return 1;
+        }
+    }
+
+    {
+        snr3::SnareParams c0, c1;
+        c0.shell.chirpAmt = 0.f;
+        c1.shell.chirpAmt = 1.f;
+        std::vector<float> a ((size_t) 2048), b ((size_t) 2048);
+        renderLayer (0, c0, a.data(), 2048, sr);
+        renderLayer (0, c1, b.data(), 2048, sr);
+        float d = 0.f;
+        for (int i = 0; i < 256; ++i)
+            d = std::max (d, std::abs (a[(size_t) i] - b[(size_t) i]));
+        if (d <= 0.01f)
+        {
+            std::printf ("fail: chirp d=%g\n", d);
+            return 1;
+        }
+    }
+
     if (! snr3::versionNewer ("v1.2.0", "1.1.9") || snr3::versionNewer ("1.0.0", "v1.0.0")
         || snr3::newestNewerTag ({ "v0.9.0", "v1.1.0", "nightly" }, "1.0.0") != "v1.1.0")
     {

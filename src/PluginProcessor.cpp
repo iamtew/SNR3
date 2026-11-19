@@ -75,7 +75,14 @@ void applyFactory (SNR3AudioProcessor& proc, const snr3::FactoryPreset& preset)
     setParam (apvts, ParamID::duckDepth, preset.duck);
     setParam (apvts, ParamID::duckTime, preset.duckTime);
     setParam (apvts, ParamID::length, (float) preset.length);
-    setParam (apvts, ParamID::wiresBuzz, 0.28f);
+    setParam (apvts, ParamID::style, (float) preset.style);
+    setParam (apvts, ParamID::bodyShape, (float) preset.shape);
+    setParam (apvts, ParamID::harm, preset.harm);
+    setParam (apvts, ParamID::chirpAmt, preset.chirp);
+    setParam (apvts, ParamID::wiresBuzz, preset.buzz);
+    setParam (apvts, ParamID::wiresColor, preset.color);
+    setParam (apvts, ParamID::stickHard, preset.stickHard);
+    setParam (apvts, ParamID::stickClick, preset.stickClick);
 
     if (const auto* fx = snr3::findFactoryFx (preset.name))
     {

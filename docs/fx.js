@@ -132,32 +132,18 @@ function ellipsePts(cx, cy, rx, ry, n = 40) {
 }
 
 function drumAt(w, h) {
-  // Wide pages: reach past the centered column so the rim sits in the margin.
-  const column = Math.min(w - 48, 1152);
-  const margin = (w - column) / 2;
-  const rx = margin > 160 ? Math.min(w * 0.46, w / 2 - 48) : Math.min(w, h) * 0.34;
-  const ry = Math.min(rx * 0.42, h * 0.3);
-  const cy = Math.max(ry * 0.55 + 72, Math.min(h * 0.4, h - ry * 0.4));
-  return { cx: w * 0.5, cy, rx, ry };
+  // The page cards cover the middle, so the hoop fills the viewport.
+  const rx = w * 0.46;
+  const ry = Math.min(h * 0.38, rx * 0.55);
+  return { cx: w * 0.5, cy: h * 0.46, rx, ry };
 }
 
-function scoreAt(d, w) {
-  const column = Math.min(w - 48, 1152);
-  const margin = (w - column) / 2;
-  let left;
-  let width;
-  let y;
-  if (!fxOnly && margin > 220) {
-    width = Math.min(300, margin * 0.78);
-    left = Math.max(16, (margin - width) * 0.45);
-    y = d.cy + d.ry * 0.85;
-  } else {
-    width = Math.min(Math.max(180, w * 0.5), 440, Math.max(160, w - 16));
-    left = d.cx - width / 2;
-    y = d.cy + d.ry + Math.max(26, d.ry * 0.28);
-  }
-  const groupGap = Math.min(14, width * 0.03);
+function scoreAt(d, w, h) {
+  const width = Math.min(Math.max(220, w * 0.36), 520);
+  const left = d.cx - width / 2;
+  const groupGap = Math.min(16, width * 0.03);
   const cell = (width - groupGap * 3) / 16;
+  const y = Math.min(h - 20, d.cy + d.ry + 36);
   return {
     y, cell,
     x(step) {
@@ -287,7 +273,7 @@ function snareScene(PIXI, glow) {
     }
     for (const hit of hits) drawStick(d, hit, t);
 
-    const sc = scoreAt(d, w);
+    const sc = scoreAt(d, w, h);
     const step = ((Math.floor(t / STEP) % 16) + 16) % 16;
     for (let s = 0; s < 16; s++) {
       const note = GROOVE.find((g) => g.step === s);

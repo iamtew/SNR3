@@ -139,7 +139,7 @@ function drumAt(w, h) {
 }
 
 function scoreAt(d, w, h) {
-  const width = Math.min(Math.max(220, w * 0.36), 520);
+  const width = Math.min(d.rx * 1.5, w - 64);
   const left = d.cx - width / 2;
   const groupGap = Math.min(16, width * 0.03);
   const cell = (width - groupGap * 3) / 16;

@@ -561,19 +561,6 @@ inline void panGains (float pan, float& gL, float& gR)
     gR = std::sin (a) * 1.41421356237f;
 }
 
-inline void layerSendMix (const float* layer, const float* amp, const float* sendAmt,
-                          float& dry, float& send, int n = kMixLayers)
-{
-    dry = 0.f;
-    send = 0.f;
-    for (int i = 0; i < n; ++i)
-    {
-        const float y = layer[i] * amp[i];
-        dry += y;
-        send += y * sendAmt[i];
-    }
-}
-
 inline void layerSendMixSplit (const float* layer, const float* amp, const float* sendAmt,
                                const bool* isWide, const float* pan, const float* drive,
                                float& mid, float& wide, float& send,
@@ -600,15 +587,15 @@ inline void layerSendMixSplit (const float* layer, const float* amp, const float
 }
 
 inline void layerAmps (const float* gain, const bool* mute, const bool* solo,
-                       const bool* enabled, const bool* flip, float* out, int n = kMixLayers)
+                       const bool* flip, float* out, int n = kMixLayers)
 {
     bool anySolo = false;
     for (int i = 0; i < n; ++i)
-        if (enabled[i] && solo[i])
+        if (solo[i])
             anySolo = true;
     for (int i = 0; i < n; ++i)
     {
-        const bool hear = enabled[i] && ! mute[i] && (! anySolo || solo[i]);
+        const bool hear = ! mute[i] && (! anySolo || solo[i]);
         out[i] = hear ? gain[i] * (flip[i] ? -1.f : 1.f) : 0.f;
     }
 }

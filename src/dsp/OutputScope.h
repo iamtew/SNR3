@@ -102,8 +102,6 @@ private:
 
 struct OutputMeter
 {
-    void prepare (double) {}
-
     void push (const juce::AudioBuffer<float>& buffer)
     {
         const int n = buffer.getNumSamples();

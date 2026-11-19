@@ -127,20 +127,10 @@ inline void readEqBands (const juce::AudioProcessorValueTreeState& apvts, const 
     }
 }
 
-inline void readEqBands (const juce::AudioProcessorValueTreeState& apvts, EqBandParam out[eqBandCount])
-{
-    readEqBands (apvts, postEqIds(), out);
-}
-
 inline bool eqEnabled (const juce::AudioProcessorValueTreeState& apvts, const char* onId)
 {
     auto* v = apvts.getRawParameterValue (onId);
     return v != nullptr && v->load() >= 0.5f;
-}
-
-inline bool postEqEnabled (const juce::AudioProcessorValueTreeState& apvts)
-{
-    return eqEnabled (apvts, ParamID::postEqOn);
 }
 
 } // namespace snr3

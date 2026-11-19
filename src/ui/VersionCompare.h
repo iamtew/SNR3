@@ -8,52 +8,43 @@
 namespace snr3
 {
 
-// Tags that are not vN.N.N... (optional leading v, digits and dots only) are ignored.
-inline bool parseVersion (std::string_view s, std::vector<int>& parts)
+inline std::vector<int> versionParts (std::string_view s)
 {
-    parts.clear();
+    std::vector<int> parts;
     if (! s.empty() && (s[0] == 'v' || s[0] == 'V'))
         s.remove_prefix (1);
-    if (s.empty() || ! std::isdigit (static_cast<unsigned char> (s[0])))
-        return false;
-
+    if (s.empty())
+        return {};
     size_t i = 0;
     while (i < s.size())
     {
         if (! std::isdigit (static_cast<unsigned char> (s[i])))
-            return false;
+            return {};
         int n = 0;
         while (i < s.size() && std::isdigit (static_cast<unsigned char> (s[i])))
-        {
-            n = n * 10 + (s[i] - '0');
-            ++i;
-        }
+            n = n * 10 + (s[i++] - '0');
         parts.push_back (n);
         if (i == s.size())
-            return true;
-        if (s[i] != '.')
-            return false;
-        ++i;
-        if (i == s.size())
-            return false;
+            return parts;
+        if (s[i++] != '.' || i == s.size())
+            return {};
     }
-    return ! parts.empty();
+    return parts;
 }
 
 inline bool versionNewer (std::string_view remote, std::string_view local)
 {
-    std::vector<int> pr, pl;
-    if (! parseVersion (remote, pr) || ! parseVersion (local, pl))
+    auto pr = versionParts (remote);
+    auto pl = versionParts (local);
+    if (pr.empty() || pl.empty())
         return false;
     const size_t n = pr.size() > pl.size() ? pr.size() : pl.size();
     pr.resize (n, 0);
     pl.resize (n, 0);
     for (size_t i = 0; i < n; ++i)
     {
-        if (pr[i] > pl[i])
-            return true;
-        if (pr[i] < pl[i])
-            return false;
+        if (pr[i] != pl[i])
+            return pr[i] > pl[i];
     }
     return false;
 }
@@ -62,12 +53,8 @@ inline std::string newestNewerTag (const std::vector<std::string>& names, std::s
 {
     std::string best;
     for (const auto& name : names)
-    {
-        if (! versionNewer (name, local))
-            continue;
-        if (best.empty() || versionNewer (name, best))
+        if (versionNewer (name, local) && (best.empty() || versionNewer (name, best)))
             best = name;
-    }
     return best;
 }
 

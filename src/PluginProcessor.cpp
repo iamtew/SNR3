@@ -123,10 +123,7 @@ void applyFactory (SNR3AudioProcessor& proc, const snr3::FactoryPreset& preset)
 SNR3AudioProcessor::SNR3AudioProcessor()
     : AudioProcessor (BusesProperties()
                           .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                          .withOutput ("Snare", juce::AudioChannelSet::stereo(), false)
-                          .withOutput ("Slot 1", juce::AudioChannelSet::stereo(), false)
-                          .withOutput ("Slot 2", juce::AudioChannelSet::stereo(), false)
-                          .withOutput ("Slot 3", juce::AudioChannelSet::stereo(), false)),
+                          .withOutput ("Snare", juce::AudioChannelSet::stereo(), false)),
       apvts (*this, nullptr, "PARAMS", createParameterLayout())
 {
     apvts.state.setProperty (kPatchName, kInitPatch, nullptr);
@@ -135,8 +132,6 @@ SNR3AudioProcessor::SNR3AudioProcessor()
 void SNR3AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     stack.prepare (sampleRate);
-    for (auto& m : layerMeters)
-        m.prepare (sampleRate);
     const int cap = juce::jmax (samplesPerBlock, 8192);
     layerScratch.setSize (snr3::kMixLayers, cap, false, false, true);
     for (int i = 0; i < snr3::kMixLayers; ++i)
@@ -145,7 +140,6 @@ void SNR3AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
         layerAnalysers[i].prepare (sampleRate);
     }
     analyser.prepare (sampleRate);
-    meter.prepare (sampleRate);
     const int ch = juce::jmax (1, getMainBusNumOutputChannels());
     sendScratch.setSize (ch, cap, false, false, true);
     postFx.prepare (sampleRate, samplesPerBlock, ch);
@@ -255,16 +249,15 @@ snr3::SnareParams SNR3AudioProcessor::currentParams() const
 void SNR3AudioProcessor::fillAmps (float* out) const
 {
     float gain[snr3::kMixLayers];
-    bool mute[snr3::kMixLayers], solo[snr3::kMixLayers], enabled[snr3::kMixLayers], flip[snr3::kMixLayers];
+    bool mute[snr3::kMixLayers], solo[snr3::kMixLayers], flip[snr3::kMixLayers];
     for (int i = 0; i < snr3::kMixLayers; ++i)
     {
-        enabled[i] = true;
         gain[i] = raw (ParamID::lyGain[i]);
         mute[i] = raw (ParamID::lyMute[i]) >= 0.5f;
         solo[i] = raw (ParamID::lySolo[i]) >= 0.5f;
         flip[i] = raw (ParamID::lyFlip[i]) >= 0.5f;
     }
-    snr3::layerAmps (gain, mute, solo, enabled, flip, out);
+    snr3::layerAmps (gain, mute, solo, flip, out);
 }
 
 void SNR3AudioProcessor::fillWide (bool* out) const
@@ -320,6 +313,11 @@ void SNR3AudioProcessor::renderLayerChans (float* const* chan, int n, double sam
                 chan[L][i] = layer[L];
     }
 
+    applyLayerEq (chan, n, sampleRate);
+}
+
+void SNR3AudioProcessor::applyLayerEq (float* const* chan, int n, double sampleRate) const
+{
     const int block = 512;
     for (int L = 0; L < snr3::kMixLayers; ++L)
     {
@@ -340,6 +338,66 @@ void SNR3AudioProcessor::renderLayerChans (float* const* chan, int n, double sam
             pos += nThis;
         }
     }
+}
+
+void SNR3AudioProcessor::mixChansWithPost (float* const* chan, int n, double sampleRate,
+                                           juce::AudioBuffer<float>& dest, float bpm) const
+{
+    const int chs = dest.getNumChannels();
+    if (n <= 0 || chs <= 0)
+        return;
+
+    float amp[snr3::kMixLayers];
+    fillAmps (amp);
+    float sendAmt[snr3::kMixLayers];
+    fillSends (sendAmt);
+    const float master = raw (ParamID::level);
+    const float width = raw (ParamID::width);
+    bool isWide[snr3::kMixLayers];
+    fillWide (isWide);
+    float pan[snr3::kMixLayers], drive[snr3::kMixLayers];
+    fillPanDrive (pan, drive);
+    juce::AudioBuffer<float> sendBuf (chs, n);
+    sendBuf.clear();
+    auto* d0 = dest.getWritePointer (0);
+    auto* d1 = chs > 1 ? dest.getWritePointer (1) : nullptr;
+    auto* s0 = sendBuf.getWritePointer (0);
+    snr3::StereoWidth sw;
+    sw.prepare (sampleRate);
+    for (int i = 0; i < n; ++i)
+    {
+        float layer[snr3::kMixLayers];
+        for (int L = 0; L < snr3::kMixLayers; ++L)
+            layer[L] = chan[L][i];
+        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
+        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, drive, mid, wide, send, extraL, extraR);
+        float L = 0.f, R = 0.f;
+        sw.process (mid * master, wide * master, width, L, R);
+        d0[i] = L + extraL * master;
+        if (d1 != nullptr)
+            d1[i] = R + extraR * master;
+        s0[i] = send * master;
+    }
+    for (int ch = 1; ch < chs; ++ch)
+        sendBuf.copyFrom (ch, 0, sendBuf, 0, 0, n);
+
+    snr3::PostFx fx;
+    snr3::ParametricEq eq;
+    const int block = 512;
+    fx.prepare (sampleRate, block, chs);
+    eq.prepare (sampleRate, block, chs);
+    for (int pos = 0; pos < n; )
+    {
+        const int nThis = juce::jmin (block, n - pos);
+        juce::AudioBuffer<float> view (dest.getArrayOfWritePointers(), chs, pos, nThis);
+        juce::AudioBuffer<float> sendView (sendBuf.getArrayOfWritePointers(), chs, pos, nThis);
+        fx.process (view, bpm, apvts, &sendView);
+        snr3::EqBandParam bands[snr3::eqBandCount];
+        snr3::readEqBands (apvts, snr3::postEqIds(), bands);
+        eq.process (view, snr3::eqEnabled (apvts, ParamID::postEqOn), bands);
+        pos += nThis;
+    }
+    snr3::clipSamples (dest.getArrayOfWritePointers(), dest.getNumChannels(), n);
 }
 
 void SNR3AudioProcessor::setLooping (bool on, float bpm)
@@ -366,17 +424,17 @@ void SNR3AudioProcessor::renderBars (juce::AudioBuffer<float>& dest, double samp
     dest.clear();
 
     auto p = currentParams();
-    float amp[snr3::kMixLayers];
-    fillAmps (amp);
-    applyVelocity (p, amp, 127);
-    float sendAmt[snr3::kMixLayers];
-    fillSends (sendAmt);
+    applyVelocity (p, nullptr, 127);
 
     snr3::SnareStack local;
     local.prepare (sampleRate);
     std::vector<float> storage[snr3::kMixLayers];
+    float* chan[snr3::kMixLayers];
     for (int L = 0; L < snr3::kMixLayers; ++L)
+    {
         storage[L].assign ((size_t) n, 0.f);
+        chan[L] = storage[L].data();
+    }
 
     int wait = 0;
     for (int i = 0; i < n; ++i)
@@ -389,75 +447,12 @@ void SNR3AudioProcessor::renderBars (juce::AudioBuffer<float>& dest, double samp
         float layer[snr3::kMixLayers];
         local.tickInto (layer);
         for (int L = 0; L < snr3::kMixLayers; ++L)
-            storage[L][(size_t) i] = layer[L];
+            chan[L][i] = layer[L];
         --wait;
     }
 
-    const int block = 512;
-    for (int L = 0; L < snr3::kMixLayers; ++L)
-    {
-        snr3::ParametricEq eq;
-        eq.prepare (sampleRate, block, 1);
-        snr3::EqBandParam bands[snr3::eqBandCount];
-        const auto ids = snr3::layerEqIds (L);
-        snr3::readEqBands (apvts, ids, bands);
-        const bool on = snr3::eqEnabled (apvts, ids.on);
-        for (int pos = 0; pos < n; )
-        {
-            const int nThis = juce::jmin (block, n - pos);
-            float* ptrs[1] = { storage[L].data() + pos };
-            juce::AudioBuffer<float> view (ptrs, 1, nThis);
-            eq.process (view, on, bands);
-            pos += nThis;
-        }
-    }
-
-    const float master = raw (ParamID::level);
-    const float width = raw (ParamID::width);
-    bool isWide[snr3::kMixLayers];
-    fillWide (isWide);
-    float pan[snr3::kMixLayers], drive[snr3::kMixLayers];
-    fillPanDrive (pan, drive);
-    auto* l = dest.getWritePointer (0);
-    auto* r = dest.getNumChannels() > 1 ? dest.getWritePointer (1) : nullptr;
-    juce::AudioBuffer<float> sendBuf (dest.getNumChannels(), n);
-    sendBuf.clear();
-    auto* s0 = sendBuf.getWritePointer (0);
-    snr3::StereoWidth sw;
-    sw.prepare (sampleRate);
-    for (int i = 0; i < n; ++i)
-    {
-        float layer[snr3::kMixLayers];
-        for (int L = 0; L < snr3::kMixLayers; ++L)
-            layer[L] = storage[L][(size_t) i];
-        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
-        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, drive, mid, wide, send, extraL, extraR);
-        float L = 0.f, R = 0.f;
-        sw.process (mid * master, wide * master, width, L, R);
-        l[i] = L + extraL * master;
-        if (r != nullptr)
-            r[i] = R + extraR * master;
-        s0[i] = send * master;
-    }
-    for (int ch = 1; ch < dest.getNumChannels(); ++ch)
-        sendBuf.copyFrom (ch, 0, sendBuf, 0, 0, n);
-
-    snr3::PostFx fx;
-    snr3::ParametricEq eq;
-    fx.prepare (sampleRate, block, dest.getNumChannels());
-    eq.prepare (sampleRate, block, dest.getNumChannels());
-    for (int pos = 0; pos < n; )
-    {
-        const int nThis = juce::jmin (block, n - pos);
-        juce::AudioBuffer<float> view (dest.getArrayOfWritePointers(), dest.getNumChannels(), pos, nThis);
-        juce::AudioBuffer<float> sendView (sendBuf.getArrayOfWritePointers(), sendBuf.getNumChannels(), pos, nThis);
-        fx.process (view, bpm, apvts, &sendView);
-        snr3::EqBandParam bands[snr3::eqBandCount];
-        snr3::readEqBands (apvts, bands);
-        eq.process (view, snr3::postEqEnabled (apvts), bands);
-        pos += nThis;
-    }
-    snr3::clipSamples (dest.getArrayOfWritePointers(), dest.getNumChannels(), n);
+    applyLayerEq (chan, n, sampleRate);
+    mixChansWithPost (chan, n, sampleRate, dest, bpm);
 }
 
 void SNR3AudioProcessor::renderShot (float* dest, int n, double sampleRate) const
@@ -505,7 +500,7 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
     auto p = currentParams();
     if (midiNote >= 0)
-        p.shell.tuneHz = snr3::midiNoteToHz (midiNote);
+        p.shell.tuneHz = (float) juce::MidiMessage::getMidiNoteInHertz (midiNote);
 
     const bool looping = loopOn.load (std::memory_order_relaxed);
     if (looping && loopRestart.exchange (false, std::memory_order_relaxed))
@@ -597,7 +592,7 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     for (int L = 0; L < snr3::kMixLayers; ++L)
         layerMeters[L].setPeak (peak[L]);
 
-    // Bus 1 = full snare stem (pre-Width, pre-FX). Slot 1–3 stay silent.
+    // Bus 1 = full snare stem (pre-Width, pre-FX).
     if (getBusCount (false) > 1)
         if (auto* b = getBus (false, 1); b != nullptr && b->isEnabled())
         {
@@ -621,8 +616,8 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 
     postFx.process (mainOut, hostBpm(), apvts, &sendScratch);
     snr3::EqBandParam bands[snr3::eqBandCount];
-    snr3::readEqBands (apvts, bands);
-    postEq.process (mainOut, snr3::postEqEnabled (apvts), bands);
+        snr3::readEqBands (apvts, snr3::postEqIds(), bands);
+    postEq.process (mainOut, snr3::eqEnabled (apvts, ParamID::postEqOn), bands);
 
     analyser.push (mainOut);
     meter.push (mainOut);
@@ -632,9 +627,8 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
 void SNR3AudioProcessor::renderWithPost (juce::AudioBuffer<float>& dest, double sampleRate)
 {
     const int n = dest.getNumSamples();
-    const int chs = dest.getNumChannels();
     dest.clear();
-    if (n <= 0 || chs <= 0)
+    if (n <= 0 || dest.getNumChannels() <= 0)
         return;
 
     std::vector<float> storage[snr3::kMixLayers];
@@ -645,58 +639,7 @@ void SNR3AudioProcessor::renderWithPost (juce::AudioBuffer<float>& dest, double 
         chan[L] = storage[L].data();
     }
     renderLayerChans (chan, n, sampleRate);
-    float amp[snr3::kMixLayers];
-    fillAmps (amp);
-    float sendAmt[snr3::kMixLayers];
-    fillSends (sendAmt);
-    const float master = raw (ParamID::level);
-    const float width = raw (ParamID::width);
-    bool isWide[snr3::kMixLayers];
-    fillWide (isWide);
-    float pan[snr3::kMixLayers], drive[snr3::kMixLayers];
-    fillPanDrive (pan, drive);
-    juce::AudioBuffer<float> sendBuf (chs, n);
-    sendBuf.clear();
-    auto* d0 = dest.getWritePointer (0);
-    auto* d1 = chs > 1 ? dest.getWritePointer (1) : nullptr;
-    auto* s0 = sendBuf.getWritePointer (0);
-    snr3::StereoWidth sw;
-    sw.prepare (sampleRate);
-    for (int i = 0; i < n; ++i)
-    {
-        float layer[snr3::kMixLayers];
-        for (int L = 0; L < snr3::kMixLayers; ++L)
-            layer[L] = chan[L][i];
-        float mid = 0.f, wide = 0.f, send = 0.f, extraL = 0.f, extraR = 0.f;
-        snr3::layerSendMixSplit (layer, amp, sendAmt, isWide, pan, drive, mid, wide, send, extraL, extraR);
-        float L = 0.f, R = 0.f;
-        sw.process (mid * master, wide * master, width, L, R);
-        d0[i] = L + extraL * master;
-        if (d1 != nullptr)
-            d1[i] = R + extraR * master;
-        s0[i] = send * master;
-    }
-    for (int ch = 1; ch < chs; ++ch)
-        sendBuf.copyFrom (ch, 0, sendBuf, 0, 0, n);
-
-    snr3::PostFx fx;
-    snr3::ParametricEq eq;
-    const int block = 512;
-    fx.prepare (sampleRate, block, chs);
-    eq.prepare (sampleRate, block, chs);
-    const float bpm = hostBpm();
-    for (int pos = 0; pos < n; )
-    {
-        const int nThis = juce::jmin (block, n - pos);
-        juce::AudioBuffer<float> view (dest.getArrayOfWritePointers(), chs, pos, nThis);
-        juce::AudioBuffer<float> sendView (sendBuf.getArrayOfWritePointers(), chs, pos, nThis);
-        fx.process (view, bpm, apvts, &sendView);
-        snr3::EqBandParam bands[snr3::eqBandCount];
-        snr3::readEqBands (apvts, bands);
-        eq.process (view, snr3::postEqEnabled (apvts), bands);
-        pos += nThis;
-    }
-    snr3::clipSamples (dest.getArrayOfWritePointers(), dest.getNumChannels(), n);
+    mixChansWithPost (chan, n, sampleRate, dest, hostBpm());
 }
 
 juce::File SNR3AudioProcessor::patchesDir() const

@@ -117,7 +117,7 @@ void eachLayerEqId (Fn&& fn)
     for (int layer = 0; layer < ParamID::layerCount; ++layer)
     {
         fn (ParamID::lyEqOn[layer]);
-        for (int b = 0; b < ParamID::eqBandCount; ++b)
+        for (int b = 0; b < snr3::eqBandCount; ++b)
         {
             fn (ParamID::lyEqType[layer][b]);
             fn (ParamID::lyEqFreq[layer][b]);
@@ -1462,8 +1462,8 @@ void SNR3AudioProcessorEditor::LayerRail::layoutItems (juce::Array<Item>& items)
         items.add (it);
     };
     for (int i = 0; i < ParamID::layerCount; ++i)
-        push ({ i, i, false, false, {} });
-    push ({ -1, 0, true, false, {} });
+        push ({ i, i, false, {} });
+    push ({ -1, 0, true, {} });
 }
 
 void SNR3AudioProcessorEditor::LayerRail::paint (juce::Graphics& g)

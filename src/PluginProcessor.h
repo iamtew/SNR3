@@ -85,6 +85,9 @@ private:
     void fillWide (bool* out) const;
     void fillPanDrive (float* pan, float* drive) const;
     void bindSample (snr3::SampleVoice::Params& p) const;
+    void applyLayerEq (float* const* chan, int n, double sampleRate) const;
+    void mixChansWithPost (float* const* chan, int n, double sampleRate,
+                           juce::AudioBuffer<float>& dest, float bpm) const;
 
     std::atomic<bool> loopOn { false };
     std::atomic<float> loopBpm { 140.f };

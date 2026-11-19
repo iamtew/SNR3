@@ -129,7 +129,6 @@ private:
             int layer = -1;
             int type = 0;
             bool mix = false;
-            bool add = false; // unused, kept so layout matches K1X item struct
             juce::Rectangle<int> bounds;
         };
         void layoutItems (juce::Array<Item>& items) const;

@@ -1,5 +1,6 @@
 #include "dsp/SnareRender.h"
 #include "presets/FactoryPresets.h"
+#include "ui/VersionCompare.h"
 
 #include <algorithm>
 #include <cmath>
@@ -284,6 +285,13 @@ int main()
             std::printf ("fail: sample decay 0 d=%g\n", dd);
             return 1;
         }
+    }
+
+    if (! snr3::versionNewer ("v1.2.0", "1.1.9") || snr3::versionNewer ("1.0.0", "v1.0.0")
+        || snr3::newestNewerTag ({ "v0.9.0", "v1.1.0", "nightly" }, "1.0.0") != "v1.1.0")
+    {
+        std::printf ("fail: version compare\n");
+        return 1;
     }
 
     std::printf ("ok\n");

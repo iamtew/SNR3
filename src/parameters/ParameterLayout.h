@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ParameterIDs.h"
-#include "../dsp/SnareRender.h"
 
 #include <JuceHeader.h>
 #include <cmath>
@@ -70,8 +69,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         AudioParameterFloatAttributes()
             .withStringFromValueFunction ([] (float v, int)
             {
-                const int n = snr3::hzToMidi (v);
-                return String (snr3::midiPcName (n)) + String (snr3::midiOctave (n)) + " "
+                const int n = roundToInt (69.0 + 12.0 * std::log2 ((double) v / 440.0));
+                return MidiMessage::getMidiNoteName (n, true, true, 4) + " "
                        + String (roundToInt (v)) + " Hz";
             })
             .withValueFromStringFunction ([tuneR] (const String& t)
@@ -234,13 +233,13 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
         ParameterID { ParamID::fxRevDiv, 1 }, "Reverb Div",
         StringArray { "1/64", "1/32", "1/16", "1/8" }, 1));
 
-    const float eqHzDef[ParamID::eqBandCount] = { 80.f, 250.f, 1000.f, 4000.f, 10000.f };
+    const float eqHzDef[snr3::eqBandCount] = { 80.f, 250.f, 1000.f, 4000.f, 10000.f };
     auto eqHz = NormalisableRange<float> (20.f, 20000.f, 0.01f, 0.3f);
     auto eqQ = NormalisableRange<float> (0.1f, 10.f, 0.01f, 0.4f);
     auto eqGain = NormalisableRange<float> (-12.f, 12.f, 0.01f);
     auto eqTypes = StringArray { "Off", "Peak", "Low S", "High S", "HP", "LP" };
     addOn (ParamID::postEqOn, "Post EQ On");
-    for (int b = 0; b < ParamID::eqBandCount; ++b)
+    for (int b = 0; b < snr3::eqBandCount; ++b)
     {
         const String n = "Post EQ " + String (b + 1);
         layout.add (std::make_unique<AudioParameterChoice> (
@@ -314,7 +313,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     for (int layer = 0; layer < ParamID::layerCount; ++layer)
     {
         addOn (ParamID::lyEqOn[layer], (String (who[layer]) + " EQ On").toRawUTF8());
-        for (int b = 0; b < ParamID::eqBandCount; ++b)
+        for (int b = 0; b < snr3::eqBandCount; ++b)
         {
             const String n = String (who[layer]) + " EQ " + String (b + 1);
             layout.add (std::make_unique<AudioParameterChoice> (

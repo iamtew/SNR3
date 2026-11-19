@@ -90,6 +90,9 @@ void eachLayerVoiceId (Fn&& fn)
     fn (ParamID::shellTone);
     fn (ParamID::shellLen);
     fn (ParamID::harm);
+    fn (ParamID::chirpAmt);
+    fn (ParamID::chirpMs);
+    fn (ParamID::velAmt);
     fn (ParamID::wiresDec);
     fn (ParamID::wiresHp);
     fn (ParamID::wiresLp);
@@ -1354,6 +1357,8 @@ void SNR3AudioProcessorEditor::bindKnobs()
         add (ParamID::shellDec, "Decay");
         add (ParamID::shellTone, "Tone");
         add (ParamID::harm, "Harm");
+        add (ParamID::chirpAmt, "Chirp");
+        add (ParamID::chirpMs, "Fall");
         add (ParamID::shellLen, "Length");
         add (ParamID::lyAtk[0], "Attack");
         add (ParamID::velAmt, "Vel");

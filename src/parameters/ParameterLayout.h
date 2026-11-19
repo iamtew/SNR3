@@ -133,7 +133,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
                 return jlimit (sampleDecR.start, sampleDecR.end, t.getFloatValue());
             })));
     layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::wiresBuzz, 1 }, "Wires Buzz", unit, 0.f, pct (unit)));
+        ParameterID { ParamID::wiresBuzz, 1 }, "Wires Buzz", unit, 0.25f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::wiresColor, 1 }, "Wires Color", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
@@ -167,7 +167,21 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::harm, 1 }, "Harm", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
-        ParameterID { ParamID::velAmt, 1 }, "Vel", unit, 0.f, pct (unit)));
+        ParameterID { ParamID::chirpAmt, 1 }, "Chirp", unit, 0.35f, pct (unit)));
+    auto chirpMsR = NormalisableRange<float> (1.f, 30.f, 0.1f);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::chirpMs, 1 }, "Fall", chirpMsR, 8.f,
+        AudioParameterFloatAttributes()
+            .withStringFromValueFunction ([] (float v, int)
+            {
+                return String (v, 1) + " ms";
+            })
+            .withValueFromStringFunction ([chirpMsR] (const String& t)
+            {
+                return jlimit (chirpMsR.start, chirpMsR.end, t.getFloatValue());
+            })));
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::velAmt, 1 }, "Vel", unit, 0.55f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (
         ParameterID { ParamID::width, 1 }, "Width", unit, 0.f, pct (unit)));
     layout.add (std::make_unique<AudioParameterFloat> (

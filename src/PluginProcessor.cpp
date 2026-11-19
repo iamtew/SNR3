@@ -75,6 +75,7 @@ void applyFactory (SNR3AudioProcessor& proc, const snr3::FactoryPreset& preset)
     setParam (apvts, ParamID::duckDepth, preset.duck);
     setParam (apvts, ParamID::duckTime, preset.duckTime);
     setParam (apvts, ParamID::length, (float) preset.length);
+    setParam (apvts, ParamID::wiresBuzz, 0.28f);
 
     if (const auto* fx = snr3::findFactoryFx (preset.name))
     {
@@ -224,6 +225,8 @@ void SNR3AudioProcessor::fillParams (snr3::SnareParams& p) const
     p.wires.attackMs = raw (ParamID::lyAtk[1]);
     p.wires.buzz = raw (ParamID::wiresBuzz);
     p.wires.color = raw (ParamID::wiresColor);
+    p.shell.chirpAmt = raw (ParamID::chirpAmt);
+    p.shell.chirpMs = raw (ParamID::chirpMs);
     p.stick.decayMs = raw (ParamID::stickDec);
     p.stick.toneHz = raw (ParamID::stickTone);
     p.stick.delayMs = raw (ParamID::lyDelay[2]);
@@ -277,16 +280,18 @@ void SNR3AudioProcessor::fillPanDrive (float* pan, float* drive) const
     }
 }
 
-void SNR3AudioProcessor::applyVelocity (snr3::SnareParams& p, float* amp, int vel) const
+void SNR3AudioProcessor::applyVelocity (snr3::SnareParams& p, int vel) const
 {
     const float s = snr3::velScale (vel, raw (ParamID::velAmt));
     p.stick.decayMs *= s;
     p.wires.decay *= s;
     p.shell.decay *= s;
-    if (amp == nullptr)
-        return;
-    for (int i = 1; i < snr3::kMixLayers; ++i)
-        amp[i] *= s;
+    p.shell.amp = s;
+    p.wires.amp = s;
+    p.stick.amp = s;
+    p.sample.amp = s;
+    p.shell.modeTilt = s;
+    p.shell.toneHz *= 0.4f + 0.6f * s;
 }
 
 void SNR3AudioProcessor::fillSends (float* out) const
@@ -298,9 +303,9 @@ void SNR3AudioProcessor::fillSends (float* out) const
 void SNR3AudioProcessor::renderLayerChans (float* const* chan, int n, double sampleRate) const
 {
     auto p = currentParams();
-    applyVelocity (p, nullptr, 127);
+    applyVelocity (p, 127);
 
-    snr3::SnareStack local;
+    snr3::SnareBank local;
     local.prepare (sampleRate);
     local.trigger (p);
 
@@ -424,9 +429,9 @@ void SNR3AudioProcessor::renderBars (juce::AudioBuffer<float>& dest, double samp
     dest.clear();
 
     auto p = currentParams();
-    applyVelocity (p, nullptr, 127);
+    applyVelocity (p, 127);
 
-    snr3::SnareStack local;
+    snr3::SnareBank local;
     local.prepare (sampleRate);
     std::vector<float> storage[snr3::kMixLayers];
     float* chan[snr3::kMixLayers];
@@ -486,55 +491,71 @@ void SNR3AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
-    bool trig = pendingTrig.exchange (false, std::memory_order_relaxed);
-    int midiNote = -1;
-    int midiVel = 127;
+    const int n = buffer.getNumSamples();
+    const int nEq = juce::jmin (n, layerScratch.getNumSamples());
+    struct Hit { int at; int note; int vel; };
+    Hit hits[32];
+    int nHits = 0;
+    if (pendingTrig.exchange (false, std::memory_order_relaxed) && nHits < 32)
+        hits[nHits++] = { 0, -1, 127 };
     for (const auto meta : midi)
-        if (meta.getMessage().isNoteOn())
-        {
-            trig = true;
-            midiNote = meta.getMessage().getNoteNumber();
-            midiVel = meta.getMessage().getVelocity();
-        }
+    {
+        if (! meta.getMessage().isNoteOn() || nHits >= 32)
+            continue;
+        int at = meta.samplePosition;
+        if (at < 0)
+            at = 0;
+        if (at >= nEq)
+            at = nEq > 0 ? nEq - 1 : 0;
+        hits[nHits++] = { at, meta.getMessage().getNoteNumber(), meta.getMessage().getVelocity() };
+    }
     midi.clear();
-
-    auto p = currentParams();
-    if (midiNote >= 0)
-        p.shell.tuneHz = (float) juce::MidiMessage::getMidiNoteInHertz (midiNote);
+    for (int i = 1; i < nHits; ++i)
+    {
+        Hit h = hits[i];
+        int j = i;
+        while (j > 0 && hits[j - 1].at > h.at)
+        {
+            hits[j] = hits[j - 1];
+            --j;
+        }
+        hits[j] = h;
+    }
 
     const bool looping = loopOn.load (std::memory_order_relaxed);
     if (looping && loopRestart.exchange (false, std::memory_order_relaxed))
-    {
-        trig = true;
         loopWait = 0;
-    }
     const float bpm = juce::jlimit (40.f, 240.f, loopBpm.load (std::memory_order_relaxed));
     const int period = juce::jmax (1, (int) (getSampleRate() * 60.0 / (double) bpm));
 
+    auto fireHit = [this] (int note, int vel)
+    {
+        auto p = currentParams();
+        if (note >= 0)
+            p.shell.tuneHz = (float) juce::MidiMessage::getMidiNoteInHertz (note);
+        applyVelocity (p, vel);
+        stack.trigger (p);
+    };
+
     float amp[snr3::kMixLayers];
     fillAmps (amp);
-    applyVelocity (p, amp, midiNote >= 0 ? midiVel : 127);
     float sendAmt[snr3::kMixLayers];
     fillSends (sendAmt);
     auto mainOut = getBusBuffer (buffer, false, 0);
     auto* l = mainOut.getWritePointer (0);
-    const int n = buffer.getNumSamples();
-    const int nEq = juce::jmin (n, layerScratch.getNumSamples());
     int wait = loopWait;
-    bool fire = trig;
+    int hi = 0;
     for (int i = 0; i < nEq; ++i)
     {
-        if (looping && wait <= 0 && ! fire)
+        if (looping && wait <= 0)
         {
-            fire = true;
+            fireHit (-1, 127);
             wait = period;
         }
-        if (fire)
+        while (hi < nHits && hits[hi].at <= i)
         {
-            stack.trigger (p);
-            fire = false;
-            if (looping && wait <= 0)
-                wait = period;
+            fireHit (hits[hi].note, hits[hi].vel);
+            ++hi;
         }
         float layer[snr3::kMixLayers];
         stack.tickInto (layer);

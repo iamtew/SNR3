@@ -81,7 +81,7 @@ private:
     void fillParams (snr3::SnareParams& p) const;
     void fillAmps (float* out) const;
     void fillSends (float* out) const;
-    void applyVelocity (snr3::SnareParams& p, float* amp, int vel) const;
+    void applyVelocity (snr3::SnareParams& p, int vel) const;
     void fillWide (bool* out) const;
     void fillPanDrive (float* pan, float* drive) const;
     void bindSample (snr3::SampleVoice::Params& p) const;
@@ -94,7 +94,7 @@ private:
     std::atomic<bool> loopRestart { false };
     int loopWait = 0;
 
-    snr3::SnareStack stack;
+    snr3::SnareBank stack;
     snr3::OutputMeter layerMeters[snr3::kMixLayers];
     snr3::ParametricEq layerEq[snr3::kMixLayers];
     snr3::EqAnalyser layerAnalysers[snr3::kMixLayers];

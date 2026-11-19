@@ -154,7 +154,18 @@ inline float noiseUni (std::uint32_t& n)
     return ((float) (int) (noiseStep (n) >> 8) * (1.f / 8388608.f)) - 1.f;
 }
 
-// Pitched body. Small start chirp is baked in — not Kick Drop / P.Hold.
+// Circular-membrane ratios (01, 11, 21, 02, 31, 12, 41, 22). Not a mesh.
+inline constexpr int kShellModes = 8;
+inline constexpr float kShellRatio[kShellModes] = {
+    1.000f, 1.593f, 2.135f, 2.295f, 2.653f, 2.917f, 3.155f, 3.500f
+};
+inline constexpr float kShellGain[kShellModes] = {
+    1.00f, 0.45f, 0.28f, 0.22f, 0.16f, 0.12f, 0.09f, 0.07f
+};
+inline constexpr float kShellDecMul[kShellModes] = {
+    1.00f, 0.85f, 0.70f, 0.62f, 0.50f, 0.42f, 0.35f, 0.28f
+};
+
 struct ShellVoice
 {
     struct Params
@@ -166,8 +177,13 @@ struct ShellVoice
         float lengthSec = 0.f;
         float attackMs = 0.4f;
         bool holdNote = false;
-        int bodyShape = 0;   // 0 sine, 1 tri
-        float harmonic = 0.f; // user Harm + Style 2nd
+        int bodyShape = 0;   // 0 sine, 1 tri (fundamental only)
+        float harmonic = 0.f; // extra 2nd + mode stretch
+        float chirpAmt = 0.35f;
+        float chirpMs = 8.f;
+        float excite = 0.f;   // stick impulse into the head
+        float modeTilt = 1.f; // velocity: 1 = full high modes
+        float amp = 1.f;
     };
 
     void prepare (double sampleRate)
@@ -179,8 +195,8 @@ struct ShellVoice
     void trigger (const Params& p)
     {
         params = p;
-        phase = 0.0;
-        phase2 = 0.0;
+        for (int m = 0; m < kShellModes; ++m)
+            phase[m] = 0.0;
         lpZ = 0.f;
         float life = params.decay * 8.f;
         if (life < 0.05f)
@@ -200,35 +216,50 @@ struct ShellVoice
         if (! clock.tick())
             return 0.f;
         const double t = (double) clock.pos / clock.sr;
-        // ponytail: ~8 ms chirp, one octave at t=0. Drop knobs if a Meat Bag wants Kick-style pitch.
-        const float chirp = std::exp ((float) (-t / 0.008));
-        const float freq = params.tuneHz * (1.f + 0.35f * chirp);
-        const float freq2 = freq * 1.76f;
-        phase += (double) freq / clock.sr;
-        phase2 += (double) freq2 / clock.sr;
-        if (phase >= 1.0)
-            phase -= std::floor (phase);
-        if (phase2 >= 1.0)
-            phase2 -= std::floor (phase2);
+        float tau = params.chirpMs * 0.001f;
+        if (tau < 0.001f)
+            tau = 0.001f;
+        const float chirp = std::exp ((float) (-t / (double) tau));
+        const float freq0 = params.tuneHz * (1.f + params.chirpAmt * chirp);
+        const float stretch = 1.f + params.harmonic * 0.25f;
+        float tilt = params.modeTilt;
+        if (tilt < 0.05f)
+            tilt = 0.05f;
+        if (tilt > 1.f)
+            tilt = 1.f;
         const float twopi = 6.283185307179586f;
-        const float ph = (float) (phase * (double) twopi);
-        const float ph2 = (float) (phase2 * (double) twopi);
-        float p1 = std::sin (ph);
-        float p2 = std::sin (ph2);
-        if (params.bodyShape == 1)
+        const float ny = (float) (clock.sr * 0.45);
+        float body = 0.f;
+        for (int m = 0; m < kShellModes; ++m)
         {
-            if (p1 > 1.f) p1 = 1.f;
-            if (p1 < -1.f) p1 = -1.f;
-            if (p2 > 1.f) p2 = 1.f;
-            if (p2 < -1.f) p2 = -1.f;
-            p1 = 0.636619772f * std::asin (p1);
-            p2 = 0.636619772f * std::asin (p2);
+            const float ratio = 1.f + (kShellRatio[m] - 1.f) * stretch;
+            const float f = freq0 * ratio;
+            if (f < 1.f || f > ny)
+                continue;
+            phase[m] += (double) f / clock.sr;
+            if (phase[m] >= 1.0)
+                phase[m] -= std::floor (phase[m]);
+            float s = std::sin ((float) (phase[m] * (double) twopi));
+            if (m == 0 && params.bodyShape == 1)
+            {
+                if (s > 1.f) s = 1.f;
+                if (s < -1.f) s = -1.f;
+                s = 0.636619772f * std::asin (s);
+            }
+            float g = kShellGain[m];
+            if (m > 0)
+                g *= tilt;
+            const float envM = std::exp ((float) (-t / (double) (params.decay * kShellDecMul[m])));
+            body += g * s * envM;
         }
-        const float body = p1 + 0.45f * p2 + params.harmonic * std::sin (ph + ph);
-        const float env = std::exp ((float) (-t / (double) params.decay));
+        const float env0 = std::exp ((float) (-t / (double) params.decay));
+        body += params.harmonic * std::sin ((float) (phase[0] * (double) twopi * 2.0)) * env0;
+        body *= 0.55f;
+        if (params.excite > 0.f)
+            body += params.excite * std::exp ((float) (-t / 0.0006));
         if (bodyDuck < 0.f)
             bodyDuck = 0.f;
-        float x = body * env * bodyDuck * clock.attack() * clock.fade();
+        float x = body * bodyDuck * clock.attack() * clock.fade() * params.amp;
         const float lpC = layerOnePole (params.toneHz, clock.sr);
         lpZ += lpC * (x - lpZ);
         clock.advance();
@@ -240,7 +271,7 @@ struct ShellVoice
 private:
     LayerClock clock;
     double sr = 44100.0;
-    double phase = 0.0, phase2 = 0.0;
+    double phase[kShellModes] = {};
     float lpZ = 0.f;
 };
 
@@ -256,6 +287,7 @@ struct WiresVoice
         float attackMs = 0.3f;
         float buzz = 0.f;
         float color = 0.f;
+        float amp = 1.f;
     };
 
     void prepare (double sampleRate)
@@ -271,7 +303,8 @@ struct WiresVoice
     void trigger (const Params& p)
     {
         params = p;
-        hpZ = lpZ = pinkZ = 0.f;
+        hpZ = lpZ = pinkZ = gateZ = 0.f;
+        gateZ = 0.12f;
         noise = 0xBEEFu;
         buzzW = 0;
         for (int i = 0; i < kBuzzN; ++i)
@@ -287,7 +320,7 @@ struct WiresVoice
     void silence() { clock.silence(); }
     bool active() const { return clock.active; }
 
-    float process()
+    float process (float shellAbs = 0.f)
     {
         if (! clock.tick())
             return 0.f;
@@ -305,16 +338,26 @@ struct WiresVoice
         lpZ += lpC * (high - lpZ);
         const float env = std::exp ((float) (-t / (double) params.decay));
         float y = lpZ * env * clock.attack() * clock.fade();
-        int ri = buzzW - buzzD;
-        if (ri < 0)
-            ri += kBuzzN;
-        const float delayed = buzzBuf[ri];
-        buzzBuf[buzzW] = y;
+        if (params.buzz > 0.f)
+        {
+            int r1 = buzzW - buzzD;
+            if (r1 < 0)
+                r1 += kBuzzN;
+            int r2 = buzzW - (buzzD + buzzD / 2 + 1);
+            if (r2 < 0)
+                r2 += kBuzzN;
+            const float fb = params.buzz * 0.48f;
+            y += fb * (buzzBuf[r1] + 0.65f * buzzBuf[r2]);
+            buzzBuf[buzzW] = y;
+        }
         ++buzzW;
         if (buzzW >= kBuzzN)
             buzzW = 0;
-        if (params.buzz > 0.f)
-            y += params.buzz * delayed;
+        gateZ += 0.12f * (shellAbs - gateZ);
+        float gate = 0.45f + 2.2f * gateZ;
+        if (gate > 1.8f)
+            gate = 1.8f;
+        y *= gate * params.amp;
         clock.advance();
         return y;
     }
@@ -325,7 +368,7 @@ private:
     static constexpr int kBuzzN = 256;
     LayerClock clock;
     std::uint32_t noise = 1;
-    float hpZ = 0.f, lpZ = 0.f, pinkZ = 0.f;
+    float hpZ = 0.f, lpZ = 0.f, pinkZ = 0.f, gateZ = 0.f;
     float buzzBuf[kBuzzN] = {};
     int buzzW = 0;
     int buzzD = 53;
@@ -343,6 +386,7 @@ struct StickVoice
         float gain = 1.f;
         float hard = 0.f;
         float click = 0.f;
+        float amp = 1.f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -385,7 +429,7 @@ struct StickVoice
             y += params.click * n * std::exp ((float) (-t / 0.0008)) * params.gain
                  * clock.attack() * clock.fade();
         clock.advance();
-        return y;
+        return y * params.amp;
     }
 
     Params params;
@@ -412,6 +456,7 @@ struct SampleVoice
         float start01 = 0.f;
         bool reverse = false;
         float decaySec = 0.f;
+        float amp = 1.f;
     };
 
     void prepare (double sampleRate) { clock.prepare (sampleRate); }
@@ -483,7 +528,7 @@ struct SampleVoice
             const double t = (double) clock.pos / clock.sr;
             env *= std::exp ((float) (-t / (double) params.decaySec));
         }
-        const float y = lpZ * env;
+        const float y = lpZ * env * params.amp;
         clock.advance();
         return y;
     }
@@ -637,6 +682,7 @@ inline void applyStyle (SnareParams& p)
         p.wires.decay = 0.02f;
     p.shell.harmonic = p.harm + harmonic;
     p.shell.bodyShape = p.bodyShape;
+    p.shell.excite = p.stick.gain * 0.45f;
 }
 
 struct SnareStack
@@ -680,7 +726,7 @@ struct SnareStack
     {
         const float dg = duck.tick();
         layer[0] = shell.process (dg);
-        layer[1] = wires.process();
+        layer[1] = wires.process (std::fabs (layer[0]));
         layer[2] = stick.process();
         layer[3] = sample.process();
         for (int L = 0; L < kMixLayers; ++L)
@@ -706,6 +752,41 @@ private:
     float last[kMixLayers] = {};
     float residual[kMixLayers] = {};
     int residualI[kMixLayers] = {};
+};
+
+inline constexpr int kPoly = 4;
+
+// Round-robin stacks so flams overlap instead of killing the last hit.
+struct SnareBank
+{
+    void prepare (double sampleRate)
+    {
+        for (int i = 0; i < kPoly; ++i)
+            voice[i].prepare (sampleRate);
+        next = 0;
+    }
+
+    void trigger (const SnareParams& p)
+    {
+        voice[next].trigger (p);
+        next = (next + 1) % kPoly;
+    }
+
+    void tickInto (float* layer)
+    {
+        for (int L = 0; L < kMixLayers; ++L)
+            layer[L] = 0.f;
+        float tmp[kMixLayers];
+        for (int i = 0; i < kPoly; ++i)
+        {
+            voice[i].tickInto (tmp);
+            for (int L = 0; L < kMixLayers; ++L)
+                layer[L] += tmp[L];
+        }
+    }
+
+    SnareStack voice[kPoly];
+    int next = 0;
 };
 
 } // namespace snr3

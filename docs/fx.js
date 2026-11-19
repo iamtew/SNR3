@@ -138,16 +138,22 @@ function drumAt(w, h) {
   return { cx: w * 0.5, cy: h * 0.46, rx, ry };
 }
 
+const COPIES = 3;
+
 function scoreAt(d, w, h) {
-  const width = Math.min(d.rx * 1.5, w - 64);
+  // Same pocket, written out again, so the strip is wider without stretching a bar.
+  const bar = Math.min(400, Math.max(200, (w - 96) / COPIES));
+  const groupGap = Math.min(14, bar * 0.035);
+  const cell = (bar - groupGap * 3) / 16;
+  const gap = cell * 2.2;
+  const width = COPIES * bar + (COPIES - 1) * gap;
   const left = d.cx - width / 2;
-  const groupGap = Math.min(16, width * 0.03);
-  const cell = (width - groupGap * 3) / 16;
   const y = Math.min(h - 20, d.cy + d.ry + 36);
   return {
     y, cell,
-    x(step) {
-      return left + Math.floor(step / 4) * groupGap + (step + 0.5) * cell;
+    x(copy, step) {
+      const origin = left + copy * (bar + gap);
+      return origin + Math.floor(step / 4) * groupGap + (step + 0.5) * cell;
     },
   };
 }
@@ -275,26 +281,29 @@ function snareScene(PIXI, glow) {
 
     const sc = scoreAt(d, w, h);
     const step = ((Math.floor(t / STEP) % 16) + 16) % 16;
-    for (let s = 0; s < 16; s++) {
-      const note = GROOVE.find((g) => g.step === s);
-      const x = sc.x(s);
-      if (!note) {
-        glowLine(ink, [x, sc.y - 7, x, sc.y], C.rust, 0.28, 0.65);
-        continue;
-      }
-      const accent = note.vel > 0.5;
-      glowLine(
-        ink,
-        [x, sc.y - (accent ? 28 : 16), x, sc.y],
-        accent ? C.cream : C.brass,
-        accent ? 0.85 : 0.55,
-      );
-      if (note.flam) {
-        const fx = x - sc.cell * 0.42;
-        glowLine(ink, [fx, sc.y - 14, fx, sc.y], C.brass, 0.5);
+    const copyNow = ((Math.floor(t / BAR) % COPIES) + COPIES) % COPIES;
+    for (let copy = 0; copy < COPIES; copy++) {
+      for (let s = 0; s < 16; s++) {
+        const note = GROOVE.find((g) => g.step === s);
+        const x = sc.x(copy, s);
+        if (!note) {
+          glowLine(ink, [x, sc.y - 7, x, sc.y], C.rust, 0.28, 0.65);
+          continue;
+        }
+        const accent = note.vel > 0.5;
+        glowLine(
+          ink,
+          [x, sc.y - (accent ? 28 : 16), x, sc.y],
+          accent ? C.cream : C.brass,
+          accent ? 0.85 : 0.55,
+        );
+        if (note.flam) {
+          const fx = x - sc.cell * 0.42;
+          glowLine(ink, [fx, sc.y - 14, fx, sc.y], C.brass, 0.5);
+        }
       }
     }
-    glowLine(ink, [sc.x(step), sc.y + 5, sc.x(step), sc.y + 16], C.cream, 0.7);
+    glowLine(ink, [sc.x(copyNow, step), sc.y + 5, sc.x(copyNow, step), sc.y + 16], C.cream, 0.7);
   }
 
   // Frozen on the accent of 2: stick down, wires mid-buzz, ripples leaving the center.

@@ -54,8 +54,8 @@ async function start() {
   });
 
   const glow = glowTexture(PIXI);
-  const scene = snareScene(PIXI, glow);
-  app.stage.addChild(scene.root);
+  const scene = snareScene(PIXI, glow, washTexture(PIXI));
+  app.stage.addChild(scene.back, scene.root);
   bootTicker(app, scene);
 }
 
@@ -82,6 +82,9 @@ function bootTicker(app, scene) {
       const ease = Math.min(1, dt * 2.5);
       scene.root.x += ((0.5 - pointer.x) * 40 - scene.root.x) * ease;
       scene.root.y += ((0.5 - pointer.y) * 24 - scene.root.y) * ease;
+      // The field sits further back, so the same pointer moves it less.
+      scene.back.x += ((0.5 - pointer.x) * 13 - scene.back.x) * ease;
+      scene.back.y += ((0.5 - pointer.y) * 8 - scene.back.y) * ease;
     }
     scene.update(t, w, h, dt || 0.001);
   });
@@ -89,6 +92,21 @@ function bootTicker(app, scene) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) app.ticker.stop(); else app.ticker.start();
   });
+}
+
+// Holds a little tone at the rim so the corners are not a hard void.
+function washTexture(PIXI, size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const r = size / 2;
+  const grd = g.createRadialGradient(r, r, 0, r, r, r);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.4, 'rgba(255,255,255,0.42)');
+  grd.addColorStop(1, 'rgba(255,255,255,0.2)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  return PIXI.Texture.from(c);
 }
 
 function glowTexture(PIXI, size = 64) {
@@ -158,7 +176,13 @@ function scoreAt(d, w, h) {
   };
 }
 
-function snareScene(PIXI, glow) {
+function snareScene(PIXI, glow, washTex) {
+  const back = new PIXI.Container();
+  const wash = glowSprite(PIXI, washTex, C.brass);
+  const field = new PIXI.Graphics();
+  field.blendMode = 'add';
+  back.addChild(wash, field);
+
   const root = new PIXI.Container();
   const ink = new PIXI.Graphics();
   ink.blendMode = 'add';
@@ -225,8 +249,36 @@ function snareScene(PIXI, glow) {
     glowLine(ink, [fx, fy, sx, sy], C.cream, 0.45 + 0.55 * hit.vel, life);
   }
 
-  function draw(t, w, h) {
+  function drawField(d, w, h, breathe) {
+    const radius = Math.hypot(w, h) * 0.72;
+    wash.position.set(d.cx, d.cy);
+    wash.scale.set((radius * 2) / 128);
+    wash.alpha = 0.12 + hoop * 0.05;
+
+    field.clear();
+    let far = 1;
+    for (const [x, y] of [[0, 0], [w, 0], [0, h], [w, h]]) {
+      far = Math.max(far, Math.hypot((x - d.cx) / d.rx, (y - d.cy) / d.ry));
+    }
+    const inner = 1.12;
+    const outer = Math.max(far * 1.06, inner + 0.45);
+    const pulse = breathe * (1 + hoop * 0.015);
+    for (let i = 0; i < 4; i++) {
+      const u = i / 3;
+      const s = (inner + (outer - inner) * u) * pulse;
+      glowLine(
+        field,
+        ellipsePts(d.cx, d.cy, d.rx * s, d.ry * s, i < 2 ? 100 : 140),
+        i % 2 ? C.brass : C.rust,
+        0.22,
+        0.2 - i * 0.05,
+      );
+    }
+  }
+
+  function draw(t, w, h, still) {
     const d = drumAt(w, h);
+    drawField(d, w, h, still ? 1 : 1 + 0.015 * Math.sin(t * 0.7));
     ink.clear();
 
     const wires = 14;
@@ -313,11 +365,12 @@ function snareScene(PIXI, glow) {
     hits.push({ born: hit - FLAM, vel: 0.42, grace: true });
     hits.push({ born: hit, vel: 1, grace: false });
     hoop = 0.8;
-    draw(hit + 0.04, w, h);
+    draw(hit + 0.04, w, h, true);
   }
 
   return {
     root,
+    back,
     update(t, w, h, dt) {
       if (dt === 0) {
         poster(w, h);

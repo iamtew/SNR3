@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT name="SNR3" companyName="Stupid Audio" version="0.0.1" userNotes="909-style snare drum."
+<JUCERPROJECT name="SNR3" companyName="Stupid Audio" version="0.0.2" userNotes="909-style snare drum."
               projectType="audioplug" pluginAUIsSandboxSafe="1" pluginManufacturer="Stupid Audio"
               pluginManufacturerCode="Ssys" pluginCode="Snr3" cppLanguageStandard="17"
               pluginFormats="buildVST3,buildStandalone" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
